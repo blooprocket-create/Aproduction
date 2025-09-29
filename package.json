@@ -1,0 +1,14 @@
+{
+  "name": "highclass-services-starter",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vercel dev"
+  },
+  "dependencies": {
+    "cookie": "^1.0.2",
+    "jsonwebtoken": "^9.0.2",
+    "neon": "^2.4.0",
+    "pg": "^8.12.0"
+  }
+}
