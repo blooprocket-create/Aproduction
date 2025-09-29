@@ -3,8 +3,6 @@
   "functions": {
     "api/**/*.{js,ts}": { "runtime": "nodejs20.x" }
   },
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/$1" },
-    { "source": "/(.*)", "destination": "/pages/$1" }
-  ]
+  "buildCommand": "",
+  "outputDirectory": "public"
 }
