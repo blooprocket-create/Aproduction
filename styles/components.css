@@ -1,9 +1,0 @@
-.product{display:flex;flex-direction:column;gap:10px}
-.kicker{letter-spacing:.25em;text-transform:uppercase;color:var(--muted);font-weight:700}
-.row{display:flex;gap:16px;align-items:center}
-.table{width:100%;border-collapse:separate;border-spacing:0 10px}
-.table tr{background:var(--panel)}
-.table td, .table th{padding:14px 18px}
-.table tr td:first-child, .table tr th:first-child{border-radius:12px 0 0 12px}
-.table tr td:last-child, .table tr th:last-child{border-radius:0 12px 12px 0}
-.muted{color:var(--muted)}
