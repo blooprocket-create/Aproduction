@@ -1,18 +1,20 @@
 <!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Services — ARAM</title>
+<title>Services — A.Production (of sorts)</title>
 <link rel="stylesheet" href="/styles/base.css"><link rel="stylesheet" href="/styles/components.css">
 </head><body>
   <div class="container">
-    <nav class="nav"><a href="/index.html" class="active">ARAM</a><div><a href="/products.html">Products</a> <a href="/login.html">Login</a></div></nav>
+    <nav class="nav"><a href="/index.html" class="active">A.Production</a><span class="muted">(of sorts)</span><div style="margin-left:auto"><a href="/products.html">Products</a> <a href="/login.html">Login</a></div></nav>
     <h1>Services</h1>
+    <p class="muted">White‑glove builds, done properly. No mystery fees, no mystery meat.</p>
     <div class="grid cols-3" id="list"></div>
   </div>
 <script type="module">
   import { api } from '/scripts/api.js';
   import { card } from '/scripts/ui.js';
   const root = document.getElementById('list');
-  const items = await api('/services');
+  let items = [];
+  try { items = await api('/services'); } catch(e) { console.warn(e); }
   (items||[]).forEach(s=>{
     const a = document.createElement('a');
     a.href = `/service.html?id=${s.id}`;

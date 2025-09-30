@@ -1,33 +1,32 @@
 import { query } from '../_utils/db.js';
-import { ok, bad } from '../_utils/responses.js';
-import { requireRole } from '../_utils/roleGuard.js';
+import { readAuth } from '../_utils/jwt.js';
 
-export default async function handler(req){
+export default async function handler(req, res){
   const id = req.url.split('/').pop();
   if (req.method === 'GET'){
     const r = await query('select * from products where id=$1', [id]);
-    if (!r.rowCount) return bad('Not found', 404);
-    return ok(r.rows[0]);
+    if (!r.rowCount) return res.status(404).json({ ok:false, error:'Not found' });
+    return res.status(200).json({ ok:true, data:r.rows[0] });
   }
   if (req.method === 'PATCH'){
-    const [user, err] = requireRole(req, ['admin','editor']);
-    if (err) return err;
-    const body = await req.json();
+    const user = readAuth(req);
+    if (!user || !['admin','editor'].includes(user.role)) return res.status(403).json({ ok:false, error:'Forbidden' });
+    const body = req.body || {};
     const fields = ['slug','title','subtitle','description','price_cents','badge','media','published'];
     const set = [];
     const vals = [];
     let i=1;
     for (const f of fields){ if (f in body){ set.push(`${f}=$${i++}`); vals.push(body[f]); } }
-    if (!set.length) return bad('No changes');
+    if (!set.length) return res.status(400).json({ ok:false, error:'No changes' });
     vals.push(id);
     const r = await query(`update products set ${set.join(', ')}, updated_at=now() where id=$${i} returning *`, vals);
-    return ok(r.rows[0]);
+    return res.status(200).json({ ok:true, data:r.rows[0] });
   }
   if (req.method === 'DELETE'){
-    const [_, err] = requireRole(req, ['admin']);
-    if (err) return err;
+    const user = readAuth(req);
+    if (!user || user.role!=='admin') return res.status(403).json({ ok:false, error:'Forbidden' });
     await query('delete from products where id=$1', [id]);
-    return ok({ deleted: true });
+    return res.status(200).json({ ok:true, data:{ deleted:true } });
   }
-  return bad('Method not allowed', 405);
+  return res.status(405).json({ ok:false, error:'Method not allowed' });
 }

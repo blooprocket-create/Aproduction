@@ -1,8 +1,10 @@
 const API = '/api';
 export async function api(path, opts={}){
-  const r = await fetch(`${API}${path}`, { credentials:'include', headers:{ 'content-type':'application/json' }, ...opts });
-  const j = await r.json().catch(()=>({ ok:false, error:'bad json' }));
-  if (!r.ok) throw new Error(j.error||'Request failed');
+  const init = { credentials:'include', headers:{ 'content-type':'application/json' }, ...opts };
+  const r = await fetch(`${API}${path}`, init);
+  let j = null;
+  try { j = await r.json(); } catch { throw new Error(`Bad JSON from ${path}`); }
+  if (!r.ok || !j?.ok) throw new Error(j?.error || `Request failed (${r.status})`);
   return j.data;
 }
 export const Auth = {
@@ -11,3 +13,4 @@ export const Auth = {
   register: (email, password) => api('/auth/register', { method:'POST', body: JSON.stringify({ email, password }) }),
   logout: () => api('/auth/logout')
 };
+export function money(cents){ return new Intl.NumberFormat('en-US',{ style:'currency', currency:'USD' }).format((cents||0)/100); }

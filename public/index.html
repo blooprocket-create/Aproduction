@@ -1,11 +1,11 @@
 <!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ARAM — Studio</title>
+<title>A.Production (of sorts)</title>
 <link rel="stylesheet" href="/styles/base.css"><link rel="stylesheet" href="/styles/components.css">
 </head><body>
   <div class="container">
     <nav class="nav">
-      <div class="row"><span class="badge">ARAM</span></div>
+      <div class="row"><span class="badge">A.Production</span><span class="muted" style="margin-left:8px">(of sorts)</span></div>
       <div>
         <a href="/index.html" class="active">Home</a>
         <a href="/services.html">Services</a>
@@ -16,24 +16,25 @@
     </nav>
 
     <section class="hero">
-      <div class="kicker">Studio</div>
-      <h1>High‑Class Websites & Courses</h1>
-      <p>Premium builds, pragmatic courses, and digital assets that actually move the needle. Dark, sleek, and fast.</p>
+      <div class="kicker">Studio, but make it useful</div>
+      <h1>Websites that look expensive <span class="muted">(because they are)</span></h1>
+      <p>Premium builds and pragmatic courses—crafted with taste, shipped with pace. Sleek. Dark. A little cheeky.</p>
       <div class="row" style="margin-top:20px">
-        <a class="button" href="/services.html">Hire Me</a>
-        <a class="button ghost" href="/products.html">Browse Catalog</a>
+        <a class="button" href="/services.html">Hire the studio</a>
+        <a class="button ghost" href="/products.html">Browse the goodies</a>
       </div>
     </section>
 
     <section class="grid cols-3" id="featured"></section>
 
-    <footer class="footer">© <span id="y"></span> ARAM Studio. All rights reserved.</footer>
+    <footer class="footer">© <span id="y"></span> A.Production (of sorts). All rights reserved.</footer>
   </div>
 <script type="module">
   import { api } from '/scripts/api.js';
   import { card } from '/scripts/ui.js';
   const root = document.getElementById('featured');
-  const items = await api('/products');
+  let items = [];
+  try { items = await api('/products'); } catch(e) { console.warn(e); }
   (items||[]).slice(0,6).forEach(p=>{
     const a = document.createElement('a');
     a.href = p.kind==='service'?`/service.html?id=${p.id}`:`/product.html?id=${p.id}`;

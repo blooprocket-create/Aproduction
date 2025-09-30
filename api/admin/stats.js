@@ -1,9 +1,9 @@
 import { query } from '../_utils/db.js';
-import { ok } from '../_utils/responses.js';
-import { requireRole } from '../_utils/roleGuard.js';
+import { readAuth } from '../_utils/jwt.js';
 
-export default async function handler(req){
-  const [_, err] = requireRole(req, ['admin']); if (err) return err;
+export default async function handler(req, res){
+  const user = readAuth(req);
+  if (!user || user.role!=='admin') return res.status(403).json({ ok:false, error:'Forbidden' });
   const totals = await query("select count(*) users, (select count(*) from products where published=true) published, (select coalesce(sum(total_cents),0) from orders) revenue_cents from users");
-  return ok(totals.rows[0]);
+  return res.status(200).json({ ok:true, data:totals.rows[0] });
 }

@@ -1,4 +1,5 @@
-import { clearAuthCookie } from '../_utils/jwt.js';
-export default async function handler(){
-  return new Response(JSON.stringify({ ok: true }), { status: 200, headers: { 'content-type': 'application/json', ...clearAuthCookie() } });
+import { clearCookieHeader } from '../_utils/jwt.js';
+export default async function handler(req, res){
+  res.setHeader('Set-Cookie', clearCookieHeader());
+  return res.status(200).json({ ok:true, data:true });
 }
