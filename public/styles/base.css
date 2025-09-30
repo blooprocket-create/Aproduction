@@ -115,6 +115,3 @@ a.card.product:hover h3{ color:#fff }
   .metrics{ grid-template-columns: 1fr !important }
   .grid{ gap:18px }
 }
-
-.nav-toggle{ display:inline-flex; align-items:center; justify-content:center; width:40px; height:40px; padding:0 }
-.nav-toggle .hamburger-icon{ width:24px; height:24px; display:block }
