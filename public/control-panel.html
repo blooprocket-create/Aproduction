@@ -1,76 +1,91 @@
-<!doctype html><html lang="en"><head>
+<!doctype html><html><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>A.Production (of sorts)</title>
+<title>Control Panel — A.Production (of sorts)</title>
 <link rel="stylesheet" href="/styles/base.css"><link rel="stylesheet" href="/styles/components.css">
 </head><body><div class="container">
+  <nav class="nav" id="nav">
+    <div class="brand">
+      <span class="logo">
+        <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="g1" x1="0" x2="1"><stop offset="0%" stop-color="#8a7cff"/><stop offset="100%" stop-color="#e45aff"/></linearGradient>
+            <radialGradient id="g2" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#e45aff"/><stop offset="100%" stop-color="#8a7cff"/></radialGradient>
+          </defs>
+          <circle class="ring" cx="20" cy="20" r="14" />
+          <circle class="dot" cx="28" cy="12" r="3"/>
+        </svg>
+      </span>
+      <span class="badge">A.Production</span><span class="muted" style="margin-left:8px">(of sorts)</span>
+    </div>
+    <button class="nav-toggle" id="nav-toggle" aria-label="Menu"></button>
+    <div class="nav-links" id="nav-links">
+      <a href="/index.html" id="nav-home">Home</a>
+      <a href="/services.html" id="nav-services">Services</a>
+      <a href="/products.html" id="nav-products">Products</a>
+      <a href="/account.html" id="nav-account">Account</a>
+      <a href="/control-panel.html" id="nav-control">Control</a>
+      <a href="/login.html" id="nav-login">Login</a>
+      <a href="#" id="nav-logout">Logout</a>
+    </div>
+  </nav>
+  <h1>Control Panel</h1>
+  <div id="who" class="muted"></div>
 
-    <nav class="nav" id="nav">
+  <div id="admin" class="grid hidden">
+    <div class="metrics" id="metrics">
+      <div class="metric"><h4>Users</h4><div class="val" id="m-users">—</div></div>
+      <div class="metric"><h4>Published</h4><div class="val" id="m-published">—</div></div>
+      <div class="metric"><h4>Revenue</h4><div class="val" id="m-revenue">—</div></div>
+    </div>
 
-<div class="brand">
-  <span class="logo">
-    <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="g1" x1="0" x2="1"><stop offset="0%" stop-color="#8a7cff"/><stop offset="100%" stop-color="#e45aff"/></linearGradient>
-        <radialGradient id="g2" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#e45aff"/><stop offset="100%" stop-color="#8a7cff"/></radialGradient>
-      </defs>
-      <circle class="ring" cx="20" cy="20" r="14" />
-      <circle class="dot" cx="28" cy="12" r="3"/>
-    </svg>
-  </span>
-  <span class="badge">A.Production</span><span class="muted" style="margin-left:8px">(of sorts)</span>
-</div>
+    <div class="card"><h3>Create Product/Service</h3>
+      <form id="create" class="grid">
+        <select name="kind"><option value="product">Product</option><option value="course">Course</option><option value="service">Service</option></select>
+        <input class="input" name="slug" placeholder="slug" required>
+        <input class="input" name="title" placeholder="title" required>
+        <textarea class="input" name="description" placeholder="description"></textarea>
+        <input class="input" name="price" placeholder="price in USD (e.g. 99.00)" type="number" min="0" step="0.01" required>
+        <label><input type="checkbox" name="published"> Published</label>
+        <button class="button" type="submit">Create</button>
+      </form>
+    </div>
 
-      <button class="nav-toggle" id="nav-toggle" aria-label="Menu">☰</button>
-      <div class="nav-links" id="nav-links">
-        <a href="/index.html" id="nav-home">Home</a> <a href="/services.html" id="nav-services">Services</a> <a href="/products.html" id="nav-products">Products</a> <a href="/account.html" id="nav-account">Account</a> <a href="/control-panel.html" id="nav-control">Control</a> <a href="/login.html" id="nav-login">Login</a> <a href="#" id="nav-logout">Logout</a>
+    <div class="card" style="grid-column: span 2;">
+      <h3>Catalog</h3>
+      <div class="table-wrap">
+        <table class="table" id="catalog">
+          <thead><tr><th>Kind</th><th>Title</th><th>Slug</th><th>Price</th><th>Published</th><th>ID</th><th>Actions</th></tr></thead>
+          <tbody></tbody>
+        </table>
       </div>
-    </nav>
-
-
-<h1>Control Panel</h1>
-<div id="who" class="muted"></div>
-<div id="admin" class="grid hidden">
-  <div class="metrics" id="metrics">
-    <div class="metric"><h4>Users</h4><div class="val" id="m-users">—</div></div>
-    <div class="metric"><h4>Published</h4><div class="val" id="m-published">—</div></div>
-    <div class="metric"><h4>Revenue</h4><div class="val" id="m-revenue">—</div></div>
-  </div>
-  <div class="card"><h3>Create Product/Service</h3>
-    <form id="create" class="grid">
-      <select name="kind"><option value="product">Product</option><option value="course">Course</option><option value="service">Service</option></select>
-      <input class="input" name="slug" placeholder="slug" required>
-      <input class="input" name="title" placeholder="title" required>
-      <textarea class="input" name="description" placeholder="description"></textarea>
-      <input class="input" name="price" placeholder="price in USD (e.g. 99.00)" type="number" min="0" step="0.01" required>
-      <label><input type="checkbox" name="published"> Published</label>
-      <button class="button" type="submit">Create</button>
-    </form>
-  </div>
-  <div class="card" style="grid-column: span 2;">
-    <h3>Catalog</h3>
-    <div class="table-wrap">
-      <table class="table" id="catalog">
-        <thead><tr><th>Kind</th><th>Title</th><th>Slug</th><th>Price</th><th>Published</th><th>ID</th><th>Actions</th></tr></thead>
-        <tbody></tbody>
-      </table>
+      <div id="catalog-cards" class="grid hidden"></div>
     </div>
   </div>
 </div>
+<div class="nav-overlay"></div>
 <script type="module">
   import { api, Auth, money } from '/scripts/api.js';
+  import { wireNav } from '/scripts/nav.js';
+  await wireNav('nav-control');
+
   const who = document.getElementById('who');
   const admin = document.getElementById('admin');
+  const cardsWrap = document.getElementById('catalog-cards');
+  const isMobile = () => matchMedia('(max-width: 720px)').matches;
+
   try{
     const me = await Auth.me();
     if (!['admin','editor'].includes(me.role)) { location.href='/'; }
     who.textContent = `Signed in as ${me.email} — role: ${me.role}`;
     admin.classList.remove('hidden');
+
     if (me.role==='admin'){
       const s = await api('/admin/stats');
       document.getElementById('m-users').textContent = Number(s.users||0).toLocaleString();
       document.getElementById('m-published').textContent = Number(s.published||0).toLocaleString();
       document.getElementById('m-revenue').textContent = money(Number(s.revenue_cents||0));
     }
+
     document.getElementById('create').onsubmit = async (e)=>{
       e.preventDefault(); const fd = new FormData(e.target);
       const payload = Object.fromEntries(fd.entries());
@@ -81,12 +96,32 @@
       try{ await api(path, { method:'POST', body: JSON.stringify(payload) }); e.target.reset(); await loadCatalog(); }
       catch(err){ alert(err.message); }
     };
+
     async function loadCatalog(){
       const [prods, servs] = await Promise.all([ api('/products?all=1'), api('/services?all=1') ]);
       const rows = [...(prods||[]), ...(servs||[])];
-      const tb = document.querySelector('#catalog tbody'); tb.innerHTML = '';
+      if (isMobile()){
+        renderCards(rows);
+      } else {
+        renderTable(rows);
+      }
+    }
+
+    function renderTable(rows){
+      cardsWrap.classList.add('hidden');
+      document.querySelector('.table-wrap').style.display = 'block';
+      const tb = document.querySelector('#catalog tbody');
+      tb.innerHTML = '';
       rows.forEach(r=> tb.appendChild(makeRow(r)) );
     }
+
+    function renderCards(rows){
+      document.querySelector('.table-wrap').style.display = 'none';
+      cardsWrap.classList.remove('hidden');
+      cardsWrap.innerHTML = '';
+      rows.forEach(r => cardsWrap.appendChild(makeCard(r)));
+    }
+
     function makeRow(r){
       const tr = document.createElement('tr');
       tr.dataset.id = r.id; tr.dataset.kind = r.kind;
@@ -98,10 +133,11 @@
         <td class="cell" data-field="published">${r.published?'Yes':'No'}</td>
         <td>${r.id.slice(0,8)}…</td>
         <td><a href="#" class="pill act-edit">Edit</a></td>`;
-      tr.querySelector('.act-edit').addEventListener('click', (e)=>{ e.preventDefault(); enterEdit(tr, r); });
+      tr.querySelector('.act-edit').addEventListener('click', (e)=>{ e.preventDefault(); enterEditRow(tr, r); });
       return tr;
     }
-    function enterEdit(tr, r){
+
+    function enterEditRow(tr, r){
       const cells = tr.querySelectorAll('.cell');
       cells.forEach(td=>{
         const field = td.dataset.field;
@@ -127,21 +163,83 @@
           const base = r.kind==='service'? '/services' : '/products';
           await api(`${base}/${r.id}`, { method:'PATCH', body: JSON.stringify(payload) });
           const fresh = await api(`${base}/${r.id}`);
-          const newTr = makeRow(fresh);
-          tr.replaceWith(newTr);
+          tr.replaceWith(makeRow(fresh));
         } catch(err){ alert(err.message); }
       };
       save.addEventListener('click', (e)=>{ e.preventDefault(); submit(); });
       cancel.addEventListener('click', (e)=>{ e.preventDefault(); loadCatalog(); });
       tr.addEventListener('keydown', (e)=>{ if (e.key==='Enter') { e.preventDefault(); submit(); } });
     }
+
+    function makeCard(r){
+      const el = document.createElement('div');
+      el.className = 'card';
+      el.innerHTML = `
+        <div class="row" style="justify-content:space-between;align-items:center">
+          <span class="badge">${(r.kind||'').toUpperCase()}</span>
+          <span class="muted">${r.id.slice(0,8)}…</span>
+        </div>
+        <div class="grid">
+          <label class="muted">Title</label>
+          <div class="field" data-field="title">${r.title}</div>
+          <label class="muted">Slug</label>
+          <div class="field" data-field="slug">${r.slug}</div>
+          <label class="muted">Price</label>
+          <div class="field" data-field="price_cents">${money(r.price_cents)}</div>
+          <label class="muted">Published</label>
+          <div class="field" data-field="published">${r.published?'Yes':'No'}</div>
+        </div>
+        <div class="row" style="justify-content:flex-end;margin-top:8px">
+          <a href="#" class="pill act-edit">Edit</a>
+        </div>
+      `;
+      el.querySelector('.act-edit').addEventListener('click', (e)=>{
+        e.preventDefault();
+        enterEditCard(el, r);
+      });
+      return el;
+    }
+
+    function enterEditCard(card, r){
+      const fields = card.querySelectorAll('.field');
+      fields.forEach(f => {
+        const name = f.dataset.field;
+        if (name==='published'){
+          f.innerHTML = `<input type="checkbox" ${r.published?'checked':''}>`;
+        } else if (name==='price_cents'){
+          f.innerHTML = `<input class="input" type="number" min="0" step="0.01" value="${(r.price_cents||0)/100}">`;
+        } else {
+          f.innerHTML = `<input class="input" type="text" value="${r[name]||''}">`;
+        }
+      });
+      const actions = card.querySelector('.row:last-child');
+      actions.innerHTML = `<a href="#" class="pill act-save">Save</a> <a href="#" class="pill act-cancel">Cancel</a>`;
+      const save = actions.querySelector('.act-save');
+      const cancel = actions.querySelector('.act-cancel');
+      const submit = async ()=>{
+        const payload = {};
+        card.querySelectorAll('.field').forEach(f=>{
+          const name = f.dataset.field;
+          const input = f.querySelector('input');
+          if (!input) return;
+          if (name==='price_cents'){ payload[name] = Math.round(Number(input.value||0)*100); }
+          else if (name==='published'){ payload[name] = !!input.checked; }
+          else { payload[name] = input.value; }
+        });
+        try{
+          const base = r.kind==='service'? '/services' : '/products';
+          await api(`${base}/${r.id}`, { method:'PATCH', body: JSON.stringify(payload) });
+          loadCatalog(); // re-render cards
+        } catch(err){ alert(err.message); }
+      };
+      save.addEventListener('click', (e)=>{ e.preventDefault(); submit(); });
+      cancel.addEventListener('click', (e)=>{ e.preventDefault(); loadCatalog(); });
+      card.addEventListener('keydown', (e)=>{ if (e.key==='Enter') { e.preventDefault(); submit(); } });
+    }
+
     await loadCatalog();
+    addEventListener('resize', () => loadCatalog(), { passive:true });
   }catch(e){ location.href = '/login.html'; }
 </script>
-
-</div>
-<script type="module">
-  import { wireNav } from '/scripts/nav.js';
-  await wireNav('nav-control');
-</script>
+<script type="module" src="/scripts/nav.js"></script>
 </body></html>

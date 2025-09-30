@@ -1,21 +1,48 @@
 import { currentUser, Auth } from '/scripts/api.js';
 
-let wired = false;
-
 function show(el){ el && (el.style.display=''); }
 function hide(el){ el && (el.style.display='none'); }
 
+const HAMBURGER_SVG = `
+<svg width="22" height="22" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mh1" x1="0" x2="1"><stop offset="0%" stop-color="#8a7cff"/><stop offset="100%" stop-color="#e45aff"/></linearGradient>
+  </defs>
+  <g fill="none" stroke="url(#mh1)" stroke-width="2" stroke-linecap="round">
+    <path d="M8 12 H32"><animate attributeName="d" dur="2s" repeatCount="indefinite"
+      values="M8 12 H32; M10 12 H30; M8 12 H32"/></path>
+    <path d="M8 20 H32"><animate attributeName="d" dur="2.2s" repeatCount="indefinite"
+      values="M8 20 H32; M12 20 H28; M8 20 H32"/></path>
+    <path d="M8 28 H32"><animate attributeName="d" dur="2.4s" repeatCount="indefinite"
+      values="M8 28 H32; M14 28 H26; M8 28 H32"/></path>
+  </g>
+</svg>`;
+
 export async function wireNav(active=''){
-  if (wired) wired=false; // allow multiple pages to init independently
   const me = await currentUser();
 
   const nav = document.querySelector('.nav');
   const toggle = document.getElementById('nav-toggle');
   const links = document.getElementById('nav-links');
+
   if (toggle){
+    toggle.innerHTML = HAMBURGER_SVG;
     toggle.addEventListener('click', (e)=>{
       e.preventDefault();
-      nav.classList.toggle('open');
+      const opened = nav.classList.toggle('open');
+      let overlay = document.querySelector('.nav-overlay');
+      if (opened){
+        if (!overlay){
+          overlay = document.createElement('div');
+          overlay.className = 'nav-overlay';
+          nav.after(overlay);
+        }
+        overlay.onclick = () => { nav.classList.remove('open'); overlay.remove(); };
+        document.documentElement.style.overflow = 'hidden';
+      } else {
+        overlay && overlay.remove();
+        document.documentElement.style.overflow = '';
+      }
     });
   }
 
@@ -30,11 +57,11 @@ export async function wireNav(active=''){
     linkAccount.textContent = 'Account';
     show(linkLogout);
     linkLogout.textContent = `Logout (${me.email.split('@')[0]})`;
-    linkLogout.addEventListener('click', async (e)=>{
+    linkLogout.onclick = async (e)=>{
       e.preventDefault();
       try { await Auth.logout(); } catch {}
       location.href = '/';
-    }, { once:true });
+    };
     if (['admin','editor'].includes(me.role)){ show(linkControl); } else { hide(linkControl); }
   } else {
     show(linkLogin);

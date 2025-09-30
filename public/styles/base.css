@@ -8,7 +8,7 @@ html,body{height:100%}
 body{ margin:0; font:16px/1.6 system-ui,-apple-system,Segoe UI,Roboto,Ubuntu; color:var(--text); background:var(--bg); opacity:0; animation: fadeIn .5s ease forwards; position:relative; overflow-x:hidden; }
 @keyframes fadeIn { to{ opacity:1 } }
 
-/* animated backdrop (from prior patch) */
+/* animated backdrop */
 body::before, body::after{ content:""; position:fixed; inset:auto; pointer-events:none; z-index:-1; width:60vmax; height:60vmax; border-radius:50%; filter: blur(60px); opacity:.18; mix-blend-mode:screen; background: radial-gradient(40% 40% at 50% 50%, var(--brand-2), transparent 60%); transform: translate3d(-20vw,-30vh,0); animation: drift1 26s ease-in-out infinite alternate; }
 body::after{ width:70vmax; height:70vmax; opacity:.14; filter: blur(70px); background: radial-gradient(40% 40% at 50% 50%, var(--brand), transparent 60%); transform: translate3d(45vw,55vh,0); animation: drift2 34s ease-in-out infinite alternate; }
 @keyframes drift1 { 0% { transform: translate3d(-25vw,-35vh,0) scale(1) } 100%{ transform: translate3d(-5vw,-15vh,0) scale(1.08) } }
@@ -47,7 +47,11 @@ body::after{ width:70vmax; height:70vmax; opacity:.14; filter: blur(70px); backg
 
 .nav-links{display:flex;align-items:center;flex-wrap:wrap}
 .nav-toggle{ display:none; background:#151628; border:1px solid #2a2d3f; color:#fff; border-radius:10px; padding:8px 10px; }
-.nav.open .nav-links{ display:block }
+
+/* overlay menu */
+.nav-overlay{position:fixed; inset:0; background:rgba(5,6,10,.55); backdrop-filter: blur(4px); z-index:49; display:none}
+.nav.open + .nav-overlay{display:block}
+.nav.open .nav-links{ position:fixed; top:72px; right:16px; left:16px; background:var(--panel); border:1px solid #2a2d3f; border-radius:14px; padding:14px; gap:10px; z-index:50; box-shadow:var(--shadow) }
 
 /* pages */
 .hero{padding:80px 0 40px}
@@ -56,6 +60,8 @@ body::after{ width:70vmax; height:70vmax; opacity:.14; filter: blur(70px); backg
 .card .price{font-size:22px;font-weight:800}
 .footer{padding:40px 0;color:var(--muted)}
 .hidden{display:none}
+.mobile-only{display:none}
+.desktop-only{display:block}
 .kicker{letter-spacing:.25em;text-transform:uppercase;color:var(--muted);font-weight:700}
 .row{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
 .price{white-space:nowrap}
@@ -67,7 +73,12 @@ a.card.product h3{ color:var(--text) }
 a.card.product p{ color:var(--muted) }
 a.card.product:hover h3{ color:#fff }
 
-/* responsive grid + nav collapse */
+/* Sticky bottom buy bar (mobile) */
+.buybar{ position:fixed; left:0; right:0; bottom:0; padding: max(10px, env(safe-area-inset-bottom)) 16px 16px; background:rgba(17,18,24,.86); backdrop-filter: blur(6px); border-top:1px solid #2a2d3f; display:flex; gap:12px; align-items:center; justify-content:space-between; z-index:60; box-shadow:0 -12px 40px rgba(0,0,0,.45) }
+.buybar .price{ font-size:18px; font-weight:800 }
+.buybar .button{ flex:1; justify-content:center }
+
+/* responsive */
 @media (max-width: 1024px){
   .grid.cols-3{ grid-template-columns:repeat(2,minmax(0,1fr)) }
   .container{ padding:24px }
@@ -80,10 +91,13 @@ a.card.product:hover h3{ color:#fff }
   .hero h1{ font-size:36px }
   .button{ width:100%; justify-content:center }
   .nav{ align-items:flex-start }
-  .nav-toggle{ display:inline-flex }
-  .nav-links{ display:none; flex-direction:column; align-items:flex-start; width:100%; margin-top:10px }
+  .nav-toggle{ display:inline-flex; align-items:center; justify-content:center; gap:8px }
+  .nav-links{ display:none; flex-direction:column; align-items:flex-start; width:auto; }
   .nav.open .nav-links{ display:flex }
   .nav-links a{ margin:6px 0 }
   .card{ padding:18px }
-  .table-wrap{ overflow-x:auto }
+  .table-wrap{ display:none } /* hide table view on small screens */
+  #catalog-cards{ display:grid } /* show cards view */
+  .mobile-only{display:block}
+  .desktop-only{display:none}
 }
