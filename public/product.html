@@ -1,0 +1,138 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Product — A.Production (of sorts)</title>
+<link rel="stylesheet" href="/styles/base.css"><link rel="stylesheet" href="/styles/components.css">
+<script defer src="/_vercel/speed-insights/script.js"></script>
+<script defer src="/_vercel/insights/script.js"></script>
+</head><body><div class="container">
+  <nav class="nav" id="nav">
+    <div class="brand">
+      <span class="logo">
+        <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="g1" x1="0" x2="1"><stop offset="0%" stop-color="#8a7cff"/><stop offset="100%" stop-color="#e45aff"/></linearGradient>
+            <radialGradient id="g2" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#e45aff"/><stop offset="100%" stop-color="#8a7cff"/></radialGradient>
+          </defs>
+          <circle class="ring" cx="20" cy="20" r="14" />
+          <circle class="dot" cx="28" cy="12" r="3"/>
+        </svg>
+      </span>
+      <span class="badge">A.Production</span><span class="muted" style="margin-left:8px">(of sorts)</span>
+    </div>
+    <button class="nav-toggle" id="nav-toggle" aria-label="Menu"></button>
+    <div class="nav-links" id="nav-links">
+      <a href="/index.html" id="nav-home">Home</a>
+      <a href="/services.html" id="nav-services">Services</a>
+      <a href="/products.html" id="nav-products">Products</a>
+      <a href="/account.html" id="nav-account">Account</a>
+      <a href="/control-panel.html" id="nav-control">Control</a>
+      <a href="/login.html" id="nav-login">Login</a>
+      <a href="#" id="nav-logout">Logout</a>
+    </div>
+  </nav>
+
+  <div id="content" class="grid">
+    <div class="card product" id="detail"></div>
+    <div class="card" id="entitlements"></div>
+    <button class="button desktop-only" id="primary"></button>
+  </div>
+</div>
+
+<div class="buybar mobile-only hidden" id="buybar">
+  <div class="row" style="gap:10px"><span id="buybar-title" class="muted"></span></div>
+  <div class="row" style="margin-left:auto;gap:10px">
+    <div class="price" id="buybar-price"></div>
+    <a href="#" class="button" id="buybar-btn"></a>
+  </div>
+</div>
+
+<script type="module">
+  import { api, money, track } from '/scripts/api.js';
+  import { wireNav } from '/scripts/nav.js';
+  await wireNav('nav-products');
+  const id = new URLSearchParams(location.search).get('id');
+  let p = null;
+  try{ p = await api('/products/'+id); }catch(e){ alert(e.message); }
+  if(!p) return;
+
+  const d = document.getElementById('detail');
+  d.innerHTML = `
+    <span class="badge">${(p.kind||'PRODUCT').toUpperCase()}</span>
+    <h1>${p.title}</h1>
+    <p class="muted">${p.description||''}</p>
+    <div class="price">${money(p.price_cents)}</div>
+  `;
+
+  const ent = document.getElementById('entitlements');
+  function renderAssets(){
+    if (p.kind==='course'){
+      if (p.owned){
+        ent.innerHTML = '<h3>Course Access</h3><p class="muted">You own this course. Dive in.</p><a class="button" href="/course.html?id='+p.id+'">Go to Course</a>';
+      } else {
+        ent.innerHTML = '<h3>What you’ll learn</h3><p class="muted">Enroll to unlock all lessons. Some previews may be available.</p>';
+      }
+      return;
+    }
+    if (p.owned){
+      ent.innerHTML = '<h3>Downloads</h3>' + (p.assets||[]).map(a => `
+        <div class="row" style="justify-content:space-between">
+          <div>${a.label}</div>
+          <a class="pill" href="/api/assets/${a.id}/download">Download</a>
+        </div>
+      `).join('') || '<p class="muted">No files attached yet.</p>';
+    } else {
+      ent.innerHTML = '<h3>Included</h3>' + (p.assets||[]).map(a => `
+        <div class="row item-locked"><div>${a.label}</div><span class="pill muted">Locked</span></div>
+      `).join('') || '<p class="muted">Details coming soon.</p>';
+    }
+  }
+  renderAssets();
+
+  const primary = document.getElementById('primary');
+  const buybar = document.getElementById('buybar');
+  const bbBtn = document.getElementById('buybar-btn');
+  const bbPrice = document.getElementById('buybar-price');
+  const bbTitle = document.getElementById('buybar-title');
+
+  if (p.kind==='course'){
+    if (p.owned){
+      primary.textContent = 'Go to Course';
+      primary.onclick = ()=> location.href = '/course.html?id='+p.id;
+      bbBtn.textContent = 'Open Course';
+      bbBtn.onclick = (e)=>{ e.preventDefault(); location.href='/course.html?id='+p.id; };
+    } else {
+      primary.textContent = 'Buy Course';
+      primary.onclick = async ()=>{
+        await api('/orders', { method:'POST', body: JSON.stringify({ product_id: id, qty:1 }) });
+        track('purchase', { id, title: p.title, kind: p.kind, amount: (p.price_cents||0)/100 });
+        location.reload();
+      };
+      bbBtn.textContent = 'Buy Course';
+      bbBtn.onclick = async (e)=>{ e.preventDefault(); await primary.onclick(); };
+    }
+  } else {
+    if (p.owned){
+      primary.textContent = 'Download Files';
+      primary.onclick = ()=>{
+        if ((p.assets||[]).length) location.href = '/api/assets/'+p.assets[0].id+'/download';
+      };
+      bbBtn.textContent = 'Open';
+      bbBtn.onclick = (e)=>{ e.preventDefault(); primary.onclick(); };
+    } else {
+      primary.textContent = 'Buy Product';
+      primary.onclick = async ()=>{
+        await api('/orders', { method:'POST', body: JSON.stringify({ product_id: id, qty:1 }) });
+        track('purchase', { id, title: p.title, kind: p.kind, amount: (p.price_cents||0)/100 });
+        location.reload();
+      };
+      bbBtn.textContent = 'Buy';
+      bbBtn.onclick = async (e)=>{ e.preventDefault(); await primary.onclick(); };
+    }
+  }
+
+  bbTitle.textContent = p.title;
+  bbPrice.textContent = money(p.price_cents);
+  buybar.classList.remove('hidden');
+</script>
+<script type="module" src="/scripts/nav.js"></script>
+</body></html>

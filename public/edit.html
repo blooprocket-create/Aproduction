@@ -1,0 +1,62 @@
+<!doctype html><html><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edit — A.Production (of sorts)</title>
+<link rel="stylesheet" href="/styles/base.css"><link rel="stylesheet" href="/styles/components.css">
+</head><body><div class="container">
+  <nav class="nav">
+    <div class="row"><span class="badge">A.Production</span><span class="muted" style="margin-left:8px">(of sorts)</span></div>
+    <div>
+      <a href="/index.html" id="nav-home">Home</a>
+      <a href="/services.html" id="nav-services">Services</a>
+      <a href="/products.html" id="nav-products">Products</a>
+      <a href="/account.html" id="nav-account">Account</a>
+      <a href="/control-panel.html" id="nav-control">Control</a>
+      <a href="/login.html" id="nav-login">Login</a>
+      <a href="#" id="nav-logout">Logout</a>
+    </div>
+  </nav>
+
+  <h1>Edit Item</h1>
+  <form id="f" class="grid" style="max-width:640px">
+    <input class="input" name="title" placeholder="title">
+    <input class="input" name="slug" placeholder="slug">
+    <textarea class="input" name="description" placeholder="description"></textarea>
+    <input class="input" name="price" type="number" min="0" step="0.01" placeholder="price in USD">
+    <label><input type="checkbox" name="published"> Published</label>
+    <button class="button" type="submit">Save</button>
+  </form>
+</div>
+<script type="module">
+  import { wireNav } from '/scripts/nav.js';
+  import { Auth, api } from '/scripts/api.js';
+  await wireNav();
+  const me = await Auth.me();
+  if (!['admin','editor'].includes(me.role)) location.href='/';
+
+  const params = new URLSearchParams(location.search);
+  const id = params.get('id');
+  const isService = params.get('k') === 'service';
+  const base = isService? '/services' : '/products';
+  const item = await api(`${base}/${id}`);
+
+  const f = document.getElementById('f');
+  f.title.value = item.title || '';
+  f.slug.value = item.slug || '';
+  f.description.value = item.description || '';
+  f.price.value = (item.price_cents||0)/100;
+  f.published.checked = !!item.published;
+
+  f.onsubmit = async (e)=>{
+    e.preventDefault();
+    const payload = {};
+    if (f.title.value) payload.title = f.title.value;
+    if (f.slug.value) payload.slug = f.slug.value;
+    if (f.description.value) payload.description = f.description.value;
+    if (f.price.value) payload.price_cents = Math.round(Number(f.price.value||0)*100);
+    payload.published = f.published.checked;
+    await api(`${base}/${id}`, { method:'PATCH', body: JSON.stringify(payload) });
+    alert('Saved');
+    history.back();
+  };
+</script>
+</body></html>
