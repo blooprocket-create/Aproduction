@@ -18,3 +18,7 @@
 .cell-edit{display:flex;gap:8px;align-items:center}
 .cell-edit input{width:100%}
 .pill{display:inline-block;padding:6px 10px;border-radius:999px;background:#1a1c28;border:1px solid #2a2d3f;color:#e8e9ef;text-decoration:none}
+/* Patch 18 additions */
+.card.downloads a { color: #cdb4ff; }
+.card .list a:hover { text-decoration: underline; }
+.buybar .button.ghost { opacity: .6; }
