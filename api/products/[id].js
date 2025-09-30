@@ -1,5 +1,6 @@
 import { query } from '../_utils/db.js';
 import { getUser } from '../_utils/auth.js';
+import { isOwned } from '../_utils/owned.js';
 
 export default async function handler(req, res){
   res.setHeader('content-type','application/json');
@@ -11,19 +12,19 @@ export default async function handler(req, res){
   if (!product){ res.status(404).json({ ok:false, error:'Not found' }); return; }
 
   const me = getUser(req);
-  let owned = false;
-  if (me){
-    const o = await query(`SELECT 1 FROM orders WHERE user_id=$1 AND product_id=$2 AND status='paid' LIMIT 1`, [me.id, id]);
-    owned = !!o.rowCount;
-  }
+  const owned = me ? await isOwned(me.id, id) : false;
 
   let assets = [];
-  if (owned){
-    const a = await query(`SELECT id, label, file_key, mime_type, bytes, sort_index FROM product_assets WHERE product_id=$1 ORDER BY sort_index, created_at`, [id]);
-    assets = a.rows;
-  } else {
-    const a = await query(`SELECT id, label, NULL as file_key, mime_type, bytes, sort_index FROM product_assets WHERE product_id=$1 ORDER BY sort_index, created_at`, [id]);
-    assets = a.rows;
+  try{
+    if (owned){
+      const a = await query(`SELECT id, label, file_key, mime_type, bytes, sort_index FROM product_assets WHERE product_id=$1 ORDER BY sort_index, created_at`, [id]);
+      assets = a.rows;
+    } else {
+      const a = await query(`SELECT id, label, NULL as file_key, mime_type, bytes, sort_index FROM product_assets WHERE product_id=$1 ORDER BY sort_index, created_at`, [id]);
+      assets = a.rows;
+    }
+  }catch{
+    // product_assets may not exist yet; ignore
   }
 
   res.json({ ok:true, data: { ...product, owned, assets } });
