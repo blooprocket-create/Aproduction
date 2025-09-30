@@ -1,12 +1,59 @@
 import { query } from '../lib/db.js';
 import { getUser, requireUser } from '../lib/auth.js';
 import { isOwned } from '../lib/owned.js';
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
 
 function send(res, code, data){ res.statusCode=code; res.setHeader('content-type','application/json'); res.end(JSON.stringify(data)); }
 async function body(req){ return await new Promise(r=>{ let s=''; req.on('data',d=>s+=d); req.on('end',()=>r(s)); }); }
-function json(b){ try{ return b?JSON.parse(b):{} }catch{ return {} }
+function json(b){ try{ return b?JSON.parse(b):{} }catch{ return {} } }
 function path(req){ try{ const u=new URL(req.url, 'http://local'); return u.pathname.replace(/^\/api/, '')||'/' }catch{ return '/' } }
 function q(req){ try{ const u=new URL(req.url,'http://local'); return Object.fromEntries(u.searchParams.entries()); }catch{ return {} } }
+
+function setTokenCookie(res, user){
+  const token = jwt.sign({ id:user.id, email:user.email, role:user.role||'customer' }, process.env.JWT_SECRET || 'dev-secret', { expiresIn: '30d' });
+  const cookie = [
+    `token=${encodeURIComponent(token)}`,
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    'Max-Age=2592000',
+    'Secure'
+  ].join('; ');
+  res.setHeader('Set-Cookie', cookie);
+}
+
+function clearTokenCookie(res){
+  const cookie = [
+    'token=',
+    'Path=/',
+    'HttpOnly',
+    'SameSite=Lax',
+    'Max-Age=0',
+    'Secure'
+  ].join('; ');
+  res.setHeader('Set-Cookie', cookie);
+}
+
+function hashPassword(pw, salt){
+  salt = salt || crypto.randomBytes(16).toString('hex');
+  const hash = crypto.pbkdf2Sync(pw, salt, 100000, 32, 'sha256').toString('hex');
+  return `pbkdf2$${salt}$${hash}`;
+}
+
+function verifyPassword(pw, stored){
+  if (!stored || typeof stored !== 'string') return false;
+  if (stored.startsWith('pbkdf2$')){
+    const parts = stored.split('$');
+    const salt = parts[1];
+    const expect = parts[2];
+    const calc = crypto.pbkdf2Sync(pw, salt, 100000, 32, 'sha256').toString('hex');
+    try{ return crypto.timingSafeEqual(Buffer.from(calc, 'hex'), Buffer.from(expect, 'hex')); }
+    catch{ return false; }
+  }
+  // legacy cleartext support (we'll upgrade on successful login)
+  return pw === stored;
+}
 
 export default async function handler(req, res){
   const p = path(req);
@@ -14,7 +61,66 @@ export default async function handler(req, res){
   const me = getUser(req);
 
   try{
-    // ---------- AUTH (leave existing endpoints if you have them; this is a minimal "me" only) ----------
+    // ---------- AUTH ----------
+    if (p === '/auth/register' && method==='POST'){
+      const b = json(await body(req));
+      const email = (b.email||'').trim().toLowerCase();
+      const password = String(b.password||'');
+      if (!email || !password) return send(res, 400, { ok:false, error:'Email and password required' });
+
+      // try password_hash first, fallback to password column
+      const hashed = hashPassword(password);
+      let row;
+      try{
+        const r = await query(`INSERT INTO users (email, password_hash, role) VALUES ($1,$2,'customer') RETURNING id,email,role`, [email, hashed]);
+        row = r.rows[0];
+      }catch(e1){
+        // column may not exist; try "password"
+        try{
+          const r2 = await query(`INSERT INTO users (email, password, role) VALUES ($1,$2,'customer') RETURNING id,email,role`, [email, hashed]);
+          row = r2.rows[0];
+        }catch(e2){
+          // unique violation
+          if (String(e2.code) === '23505') return send(res, 409, { ok:false, error:'Email already registered' });
+          return send(res, 500, { ok:false, error:'Register failed' });
+        }
+      }
+      setTokenCookie(res, row);
+      return send(res, 200, { ok:true, data: row });
+    }
+
+    if (p === '/auth/login' && method==='POST'){
+      const b = json(await body(req));
+      const email = (b.email||'').trim().toLowerCase();
+      const password = String(b.password||'');
+      if (!email || !password) return send(res, 400, { ok:false, error:'Email and password required' });
+      const r = await query(`SELECT * FROM users WHERE email=$1 LIMIT 1`, [email]);
+      const u = r.rows[0];
+      if (!u) return send(res, 401, { ok:false, error:'Invalid credentials' });
+      const stored = u.password_hash ?? u.password;
+      if (!verifyPassword(password, stored)) return send(res, 401, { ok:false, error:'Invalid credentials' });
+
+      // Upgrade legacy plaintext to pbkdf2
+      if (!String(stored).startsWith('pbkdf2$')){
+        const newHash = hashPassword(password);
+        try{
+          if ('password_hash' in u){
+            await query(`UPDATE users SET password_hash=$1 WHERE id=$2`, [newHash, u.id]);
+          } else if ('password' in u){
+            await query(`UPDATE users SET password=$1 WHERE id=$2`, [newHash, u.id]);
+          }
+        }catch{ /* ignore */ }
+      }
+      const out = { id: u.id, email: u.email, role: u.role || 'customer' };
+      setTokenCookie(res, out);
+      return send(res, 200, { ok:true, data: out });
+    }
+
+    if (p === '/auth/logout' && method==='POST'){
+      clearTokenCookie(res);
+      return send(res, 200, { ok:true, data: true });
+    }
+
     if (p === '/auth/me' && method==='GET'){
       if (!me) return send(res, 401, { ok:false, error:'Unauthorized' });
       return send(res, 200, { ok:true, data: me });
@@ -68,7 +174,7 @@ export default async function handler(req, res){
       return send(res, 200, { ok:true, data: upd.rows[0] });
     }
 
-    // ---------- SERVICES (use products table with kind='service') ----------
+    // ---------- SERVICES ----------
     if (p === '/services' && method==='GET'){
       const params = q(req);
       const showAll = params.all === '1' && me && ['admin','editor'].includes(me.role);
@@ -106,26 +212,19 @@ export default async function handler(req, res){
       return send(res, 200, { ok:true, data: upd.rows[0] });
     }
 
-    // ---------- ORDERS (mock: grant entitlement) ----------
+    // ---------- ORDERS (mock) ----------
     if (p === '/orders' && method==='POST'){
       const u = requireUser(req, res); if (!u) return;
       const b = json(await body(req));
       const product_id = b.product_id;
       if (!product_id) return send(res, 400, { ok:false, error:'Missing product_id' });
-      // ensure product exists
       const pr = await query(`SELECT id FROM products WHERE id=$1`, [product_id]);
       if (!pr.rowCount) return send(res, 404, { ok:false, error:'Product not found' });
-      // grant entitlement if table exists
-      let granted = false;
-      try{
-        await query(`INSERT INTO entitlements (user_id, product_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [u.id, product_id]);
-        granted = true;
-      }catch{}
-      // also write to orders if table exists
-      try{
-        await query(`INSERT INTO orders (user_id, product_id, status) VALUES ($1,$2,'paid') ON CONFLICT DO NOTHING`, [u.id, product_id]);
-      }catch{}
-      return send(res, 200, { ok:true, data: { product_id, granted } });
+      // grant entitlement if exists
+      try{ await query(`INSERT INTO entitlements (user_id, product_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [u.id, product_id]); }catch{}
+      // also write to orders if exists
+      try{ await query(`INSERT INTO orders (user_id, product_id, status) VALUES ($1,$2,'paid') ON CONFLICT DO NOTHING`, [u.id, product_id]); }catch{}
+      return send(res, 200, { ok:true, data: { product_id, granted: true } });
     }
 
     // ---------- ADMIN STATS ----------
@@ -140,7 +239,6 @@ export default async function handler(req, res){
     // ---------- ME / ENTITLEMENTS ----------
     if (p === '/me/entitlements' && method==='GET'){
       const u = requireUser(req, res); if (!u) return;
-      // preferred: entitlements join
       let rows = [];
       try{
         const r = await query(`
@@ -151,7 +249,6 @@ export default async function handler(req, res){
         `, [u.id]);
         rows = r.rows;
       }catch{
-        // fallback: orders
         try{
           const r = await query(`
             SELECT p.* FROM orders o
@@ -198,7 +295,6 @@ export default async function handler(req, res){
       return send(res, 200, { ok:true, data: { ...course, owned, videos } });
     }
 
-    // fallback
     return send(res, 404, { ok:false, error:'Not Found' });
   }catch(err){
     console.error('API error', err);
