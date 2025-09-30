@@ -9,34 +9,53 @@
   a.disabled{opacity:.6;pointer-events:none;text-decoration:none}
   .list{list-style:none;padding:0;margin:0}
   .list .row{display:flex;align-items:center;padding:6px 0;gap:8px}
-  .downloads a{ color: var(--link, #cdb4ff); }
 </style>
 </head><body>
   <div class="container">
-    <nav class="nav" id="nav"></nav>
+    <nav class="nav" id="nav">
+      <div class="brand">
+        <span class="logo">
+          <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="g1" x1="0" x2="1"><stop offset="0%" stop-color="#8a7cff"/><stop offset="100%" stop-color="#e45aff"/></linearGradient>
+              <radialGradient id="g2" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#e45aff"/><stop offset="100%" stop-color="#8a7cff"/></radialGradient>
+            </defs>
+            <circle class="ring" cx="20" cy="20" r="14" />
+            <circle class="dot" cx="28" cy="12" r="3"/>
+          </svg>
+        </span>
+        <span class="badge">A.Production</span><span class="muted" style="margin-left:8px">(of sorts)</span>
+      </div>
+      <button class="nav-toggle" id="nav-toggle" aria-label="Menu"></button>
+      <div class="nav-links" id="nav-links">
+        <a href="/index.html" id="nav-home">Home</a>
+        <a href="/services.html" id="nav-services">Services</a>
+        <a href="/products.html" id="nav-products">Products</a>
+        <a href="/account.html" id="nav-account">Account</a>
+        <a href="/control-panel.html" id="nav-control">Control</a>
+        <a href="/login.html" id="nav-login">Login</a>
+        <a href="#" id="nav-logout">Logout</a>
+      </div>
+    </nav>
 
     <div id="content" class="grid">
       <div class="card product" id="detail"></div>
+
+      <!-- Course CTA (desktop) -->
       <a id="view-course" class="btn secondary hidden">View course</a>
+
+      <!-- Desktop Buy -->
       <button class="button desktop-only" id="buy">Buy Now</button>
 
-      <section id="service-form" class="card hidden" style="grid-column:1 / -1">
-        <h3>Request a Quote</h3>
-        <form id="quote">
-          <div class="row"><input name="title" placeholder="Project title (e.g., Landing page redesign)" required></div>
-          <div class="row"><textarea name="details" placeholder="Tell us what you need…" rows="5"></textarea></div>
-          <button class="button" type="submit">Submit request</button>
-        </form>
-        <p id="quote-msg" class="muted"></p>
-      </section>
-
-      <section id="downloads-section" class="card downloads hidden" style="grid-column: 1 / -1;">
+      <!-- Downloads list (shows if assets defined; links unlock when owned) -->
+      <section id="downloads-section" class="card hidden" style="grid-column:1 / -1">
         <h3>Included Downloads</h3>
         <ul id="downloads-list" class="list"></ul>
       </section>
     </div>
   </div>
 
+  <!-- Sticky Buy bar (mobile) -->
   <div class="buybar mobile-only hidden" id="buybar">
     <div class="row" style="gap:10px"><span id="buybar-title" class="muted"></span></div>
     <div class="row" style="margin-left:auto;gap:10px">
@@ -47,94 +66,143 @@
   </div>
 
 <script type="module">
-  import { api, money, Service, currentUser } from '/scripts/api.js';
+  import { api, money, track } from '/scripts/api.js';
   import { wireNav } from '/scripts/nav.js';
+
+  // Wire nav correctly on this page
   await wireNav('nav-products');
 
+  // Robust param read
   const qs = new URLSearchParams(location.search);
   const id = qs.get('id');
-  if (!id) { document.getElementById('detail').innerHTML = '<h2>Missing product id</h2>'; throw new Error('no id'); }
-
-  let p = null;
-  try { p = await api('/products/' + id); } catch(e){ alert(e.message); }
-  if (!p) { document.getElementById('detail').innerHTML = '<h2>Product not found</h2>'; throw new Error('no product'); }
-
-  const d = document.getElementById('detail');
-  d.innerHTML = \`
-    <span class="badge">\${(p.kind || 'PRODUCT').toUpperCase()}</span>
-    <h1>\${p.title}</h1>
-    \${p.subtitle ? \`<h3 class="muted">\${p.subtitle}</h3>\` : ''}
-    <p class="muted">\${p.description || ''}</p>
-    <div class="price">\${money(p.price_cents)} </div>
-  \`;
-
-  const desktopCourseBtn = document.getElementById('view-course');
-  const mobileCourseBtn  = document.getElementById('buybar-course');
-  const courseHref = \`/course.html?id=\${p.id}\`;
-  if (p.course) {
-    desktopCourseBtn?.classList.remove('hidden'); desktopCourseBtn && (desktopCourseBtn.href = courseHref);
-    mobileCourseBtn?.classList.remove('hidden');  mobileCourseBtn && (mobileCourseBtn.href = courseHref);
-  } else {
-    desktopCourseBtn?.classList.add('hidden'); mobileCourseBtn?.classList.add('hidden');
+  if (!id) {
+    document.getElementById('detail').innerHTML = `<h2>Missing product id</h2>`;
+    throw new Error('No product id in querystring');
   }
 
+  // Fetch product (handle either {ok,data} or data)
+  let resp;
+  try {
+    resp = await api('/products/' + id);
+  } catch (e) {
+    console.error('Product load failed:', e);
+    alert(e.message || 'Failed to load product');
+  }
+  const p = (resp && (resp.data ?? resp)) || null;
+  if (!p) {
+    document.getElementById('detail').innerHTML = `<h2>Product not found</h2>`;
+    throw new Error('No product');
+  }
+
+  // Render PDP
+  const d = document.getElementById('detail');
+  d.innerHTML = `
+    <span class="badge">${(p.kind || 'PRODUCT').toUpperCase()}</span>
+    <h1>${p.title}</h1>
+    ${p.subtitle ? `<h3 class="muted">${p.subtitle}</h3>` : ''}
+    <p class="muted">${p.description || ''}</p>
+    <div class="price">${money(p.price_cents)} </div>
+  `;
+
+  // Course buttons
+  const desktopCourseBtn = document.getElementById('view-course');
+  const mobileCourseBtn  = document.getElementById('buybar-course');
+  const courseHref = `/course.html?id=${p.id}`;
+  if (p.course) {
+    desktopCourseBtn?.classList.remove('hidden');
+    desktopCourseBtn && (desktopCourseBtn.href = courseHref);
+    mobileCourseBtn?.classList.remove('hidden');
+    mobileCourseBtn && (mobileCourseBtn.href = courseHref);
+  } else {
+    desktopCourseBtn?.classList.add('hidden');
+    mobileCourseBtn?.classList.add('hidden');
+  }
+
+  // Downloads (visible if assets declared; link unlock when owned)
   const downloadsSection = document.getElementById('downloads-section');
   const downloadsList = document.getElementById('downloads-list');
   if (downloadsSection && downloadsList) {
     downloadsList.innerHTML = '';
     (p.assets || []).forEach(a => {
-      const li = document.createElement('li'); li.className = 'row';
-      const link = document.createElement('a'); link.textContent = a.label;
-      if (a.file_key) { link.href = \`/api/products/\${p.id}?asset=\${a.id}&download=1\`; link.target='_blank'; link.rel='noopener'; }
-      else { link.href='#'; link.classList.add('disabled'); link.onclick = e => { e.preventDefault(); alert('Purchase to unlock this download.'); }; }
-      li.appendChild(link); downloadsList.appendChild(li);
+      const li = document.createElement('li');
+      li.className = 'row';
+
+      const link = document.createElement('a');
+      link.textContent = a.label;
+
+      if (a.file_key) {
+        link.href = `/api/products/${p.id}?asset=${a.id}&download=1`;
+        link.target = '_blank';
+        link.rel = 'noopener';
+      } else {
+        link.href = '#';
+        link.classList.add('disabled');
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          alert('Purchase to unlock this download.');
+        });
+      }
+      li.appendChild(link);
+      downloadsList.appendChild(li);
     });
+
     if ((p.assets || []).length > 0) downloadsSection.classList.remove('hidden');
   }
 
-  const isService = p.kind === 'service';
+  // Buy logic
+  const buy = async () => {
+    try {
+      await api('/orders', { method:'POST', body: JSON.stringify({ product_id: id, qty: 1 }) });
+      track('purchase', { id, title: p.title, kind: p.kind, amount: (p.price_cents||0)/100 });
+
+      // Stay on PDP and reveal ownership immediately
+      p.owned = true;
+      // Flip both buttons
+      if (buyBtn) {
+        buyBtn.textContent = 'Owned';
+        buyBtn.disabled = true;
+        buyBtn.classList.add('ghost');
+      }
+      if (buybarBtn) {
+        buybarBtn.textContent = 'Owned';
+        buybarBtn.classList.add('ghost');
+        buybarBtn.href = '/account.html';
+        buybarBtn.onclick = null;
+      }
+      // Unlock downloads
+      (p.assets || []).forEach(a => a.file_key = a.file_key || 'UNLOCKED'); // render refresh below
+      location.reload(); // simplest refresh to pick up entitlement
+    } catch (e) { alert(e.message); }
+  };
+
+  // Desktop buy button
   const buyBtn = document.getElementById('buy');
-  const buybar = document.getElementById('buybar');
-  const buybarBtn = document.getElementById('buybar-btn');
-
-  if (isService) {
-    buyBtn?.classList.add('hidden');
-    buybar?.classList.add('hidden');
-
-    const formWrap = document.getElementById('service-form');
-    const form = document.getElementById('quote');
-    formWrap.classList.remove('hidden');
-    form.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const fd = new FormData(form);
-      const payload = { service_id: p.id, title: String(fd.get('title')||'').trim(), details: String(fd.get('details')||'').trim() };
-      if (!payload.title) return alert('Please add a title');
-      try {
-        await Service.request(payload);
-        document.getElementById('quote-msg').textContent = 'Request submitted. We\'ll email you once it\'s quoted.';
-        form.reset();
-      } catch (err) { alert(err.message || 'Failed to submit request'); }
-    });
-  } else {
-    const buy = async () => {
-      try {
-        await api('/orders', { method:'POST', body: JSON.stringify({ product_id: id, qty: 1 }) });
-        p.owned = true;
-        if (buyBtn) { buyBtn.textContent='Owned'; buyBtn.disabled=true; buyBtn.classList.add('ghost'); }
-        if (buybarBtn) { buybarBtn.textContent='Owned'; buybarBtn.classList.add('ghost'); buybarBtn.href='/account.html'; buybarBtn.onclick=null; }
-        location.reload();
-      } catch (e) { alert(e.message); }
-    };
-
-    if (buyBtn) { if (p.owned) { buyBtn.textContent='Owned'; buyBtn.disabled=true; buyBtn.classList.add('ghost'); } else { buyBtn.onclick = buy; } }
-    if (buybar) {
-      document.getElementById('buybar-title').textContent = p.title;
-      document.getElementById('buybar-price').textContent = money(p.price_cents);
-      if (p.owned) { buybarBtn.textContent='Owned'; buybarBtn.classList.add('ghost'); buybarBtn.href='/account.html'; buybarBtn.onclick=null; }
-      else { buybarBtn.textContent='Buy Now'; buybarBtn.onclick = (e)=>{ e.preventDefault(); buy(); }; }
-      buybar.classList.remove('hidden');
+  if (buyBtn) {
+    if (p.owned) {
+      buyBtn.textContent = 'Owned';
+      buyBtn.disabled = true;
+      buyBtn.classList.add('ghost');
+    } else {
+      buyBtn.onclick = buy;
     }
   }
+
+  // Mobile buybar
+  const bb = document.getElementById('buybar');
+  const buybarBtn = document.getElementById('buybar-btn');
+  if (bb) {
+    document.getElementById('buybar-title').textContent = p.title;
+    document.getElementById('buybar-price').textContent = money(p.price_cents);
+    if (p.owned) {
+      buybarBtn.textContent = 'Owned';
+      buybarBtn.classList.add('ghost');
+      buybarBtn.href = '/account.html';
+      buybarBtn.onclick = null;
+    } else {
+      buybarBtn.textContent = 'Buy Now';
+      buybarBtn.onclick = (e)=>{ e.preventDefault(); buy(); };
+    }
+    bb.classList.remove('hidden');
+  }
 </script>
-<script type="module" src="/scripts/nav.js"></script>
 </body></html>
