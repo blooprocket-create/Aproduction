@@ -6,8 +6,9 @@ import crypto from 'crypto';
 function send(res, code, data){ res.statusCode=code; res.setHeader('content-type','application/json'); res.end(JSON.stringify(data)); }
 async function body(req){ return await new Promise(r=>{ let s=''; req.on('data',d=>s+=d); req.on('end',()=>r(s)); }); }
 function json(b){ try{ return b?JSON.parse(b):{} }catch{ return {} } }
-function path(req){ try{ const u=new URL(req.url, 'http://local'); return u.pathname.replace(/^\/api/, '')||'/' }catch{ return '/' } }
-function q(req){ try{ const u=new URL(req.url,'http://local'); return Object.fromEntries(u.searchParams.entries()); }catch{ return {} } }
+function url(req){ try{ return new URL(req.url, 'http://local'); }catch{ return new URL('http://local/'); } }
+function path(req){ const u = url(req); return u.pathname.replace(/^\/api(?=\/|$)/, '') || '/'; }
+function q(req){ const u = url(req); return Object.fromEntries(u.searchParams.entries()); }
 
 function hashPassword(pw, salt){
   salt = salt || crypto.randomBytes(16).toString('hex');
@@ -32,6 +33,11 @@ export default async function handler(req, res){
   const me = getUser(req);
 
   try{
+    // quick echo for debugging
+    if (p==='/echo'){
+      return send(res, 200, { ok:true, data:{ method, path:p, query:q(req) } });
+    }
+
     // health
     if (p==='/health'){ return send(res, 200, { ok:true, data:{ up:true } }); }
 
@@ -87,7 +93,9 @@ export default async function handler(req, res){
     }
 
     if (p === '/auth/logout' && method==='POST'){
-      clearTokenCookie(res);
+      // clear cookie
+      const cookie = ['token=','Path=/','HttpOnly','SameSite=Lax','Max-Age=0'].join('; ');
+      res.setHeader('Set-Cookie', cookie);
       return send(res, 200, { ok:true, data: true });
     }
 
@@ -266,6 +274,6 @@ export default async function handler(req, res){
     return send(res, 404, { ok:false, error:'Not Found' });
   }catch(err){
     console.error('API error', err);
-    return send(res, 500, { ok:false, error: 'Server error', detail: String(err && err.message || err) });
+    return send(res, 500, { ok:false, error:'Server error', detail: String(err && err.message || err) });
   }
 }
