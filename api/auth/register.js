@@ -3,8 +3,6 @@ import { bad } from '../_utils/responses.js';
 import { signJwt, setAuthCookie } from '../_utils/jwt.js';
 import crypto from 'crypto';
 
-export const config = { runtime: 'nodejs20.x' };
-
 async function hashPassword(pw) {
   return new Promise((resolve, reject) => {
     const salt = crypto.randomBytes(16);
