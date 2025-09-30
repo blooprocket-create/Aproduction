@@ -1,0 +1,7 @@
+.item-locked{ opacity:.6; filter: saturate(.5) }
+.item-locked .pill{ background:#26293b; color:#9aa0b5; border-color:#2a2d3f }
+#player{ grid-column: 1 / -1 }
+@media (min-width: 900px){
+  #wrap{ grid-template-columns: 2fr 1fr }
+  #player{ grid-column:auto }
+}
