@@ -12,3 +12,5 @@ Dark, sleek storefront for services, courses, and downloads. Vanilla HTML/CSS/JS
 ## Notes
 - Pseudo-checkout grants entitlements; swap with Stripe later.
 - Keep visuals minimal and classy via `styles/base.css`.
+
+Currently: Stable-ish
