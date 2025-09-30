@@ -11,13 +11,21 @@
     <div class="card"><h3>Create Product/Service</h3>
       <form id="create" class="grid">
         <select name="kind"><option value="product">Product</option><option value="course">Course</option><option value="service">Service</option></select>
-        <input class="input" name="slug" placeholder="slug">
-        <input class="input" name="title" placeholder="title">
+        <input class="input" name="slug" placeholder="slug" required>
+        <input class="input" name="title" placeholder="title" required>
         <textarea class="input" name="description" placeholder="description"></textarea>
-        <input class="input" name="price_cents" placeholder="price in cents" type="number" min="0">
+        <input class="input" name="price" placeholder="price in USD (e.g. 99.00)" type="number" min="0" step="0.01" required>
         <label><input type="checkbox" name="published"> Published</label>
         <button class="button" type="submit">Create</button>
       </form>
+    </div>
+
+    <div class="card" style="grid-column: span 2;">
+      <h3>Catalog</h3>
+      <table class="table" id="catalog">
+        <thead><tr><th>Kind</th><th>Title</th><th>Slug</th><th>Price</th><th>Published</th><th>ID</th></tr></thead>
+        <tbody></tbody>
+      </table>
     </div>
 
     <div class="card"><h3>My Orders</h3>
@@ -30,25 +38,36 @@
   </div>
 </div>
 <script type="module">
-  import { api, Auth } from '/scripts/api.js';
-  import { money } from '/scripts/api.js';
+  import { api, Auth, money } from '/scripts/api.js';
+
   const who = document.getElementById('who');
   const admin = document.getElementById('admin');
+
   try{
     const me = await Auth.me();
+    // Gate: only admin/editor
+    if (!['admin','editor'].includes(me.role)) {
+      location.href = '/';
+      throw new Error('Forbidden');
+    }
     who.textContent = `Signed in as ${me.email} — role: ${me.role}`;
     admin.classList.remove('hidden');
 
+    // create
     document.getElementById('create').onsubmit = async (e)=>{
       e.preventDefault(); const fd = new FormData(e.target);
       const payload = Object.fromEntries(fd.entries());
       payload.published = !!fd.get('published');
-      payload.price_cents = Number(payload.price_cents||0);
+      // accept dollars in UI, convert to cents for API
+      const dollars = Number(payload.price || 0);
+      payload.price_cents = Math.round(dollars * 100);
+      delete payload.price;
       const path = payload.kind==='service'?'/services':'/products';
-      try{ await api(path, { method:'POST', body: JSON.stringify(payload) }); alert('Created'); e.target.reset(); }
+      try{ await api(path, { method:'POST', body: JSON.stringify(payload) }); alert('Created'); e.target.reset(); await loadCatalog(); }
       catch(err){ alert(err.message); }
     };
 
+    // orders
     const orders = await api('/orders', { method:'GET' });
     const tbody = document.querySelector('#orders tbody');
     (orders||[]).forEach(o=>{
@@ -57,12 +76,35 @@
       tbody.appendChild(tr);
     });
 
+    // admin stats (admin only)
     if (me.role==='admin'){
       const s = await api('/admin/stats');
       document.getElementById('stats').textContent = JSON.stringify(s, null, 2);
     }
 
-  }catch(e){ location.href = '/login.html'; }
+    // catalog (all items, includes unpublished)
+    async function loadCatalog(){
+      const [prods, servs] = await Promise.all([
+        api('/products?all=1'),
+        api('/services?all=1')
+      ]);
+      const rows = [...(prods||[]), ...(servs||[])];
+      const tb = document.querySelector('#catalog tbody');
+      tb.innerHTML = '';
+      rows.forEach(r=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${(r.kind||'').toUpperCase()}</td>
+                        <td>${r.title}</td>
+                        <td>${r.slug}</td>
+                        <td>${money(r.price_cents)}</td>
+                        <td>${r.published? 'Yes':'No'}</td>
+                        <td>${r.id.slice(0,8)}…</td>`;
+        tb.appendChild(tr);
+      });
+    }
+    await loadCatalog();
+
+  }catch(e){ console.warn(e); }
 
   document.getElementById('logout').onclick = async()=>{ await Auth.logout(); location.href='/'; };
 </script>
