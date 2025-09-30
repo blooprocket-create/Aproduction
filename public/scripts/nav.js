@@ -6,10 +6,19 @@ function show(el){ el && (el.style.display=''); }
 function hide(el){ el && (el.style.display='none'); }
 
 export async function wireNav(active=''){
-  if (wired) return;
-  wired = true;
-
+  if (wired) wired=false; // allow multiple pages to init independently
   const me = await currentUser();
+
+  const nav = document.querySelector('.nav');
+  const toggle = document.getElementById('nav-toggle');
+  const links = document.getElementById('nav-links');
+  if (toggle){
+    toggle.addEventListener('click', (e)=>{
+      e.preventDefault();
+      nav.classList.toggle('open');
+    });
+  }
+
   const linkLogin = document.getElementById('nav-login');
   const linkLogout = document.getElementById('nav-logout');
   const linkControl = document.getElementById('nav-control');

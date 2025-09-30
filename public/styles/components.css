@@ -4,9 +4,9 @@
 .product p{margin:6px 0 0 0}
 .product .price{margin-top:6px}
 
-.table{width:100%;border-collapse:separate;border-spacing:0 10px}
-.table tr{background:var(--panel)}
+.table{width:100%;border-collapse:separate;border-spacing:0 10px; min-width:700px}
 .table td, .table th{padding:14px 18px}
+.table tr{background:var(--panel)}
 .table tr td:first-child, .table tr th:first-child{border-radius:12px 0 0 12px}
 .table tr td:last-child, .table tr th:last-child{border-radius:0 12px 12px 0}
 
