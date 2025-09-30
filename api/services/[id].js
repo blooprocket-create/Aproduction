@@ -1,96 +1,32 @@
 import { query } from '../_utils/db.js';
 import { readAuth } from '../_utils/jwt.js';
 
-export default async function handler(req, res) {
-  try {
-    const url = new URL(req.url, `http://${req.headers.host||'localhost'}`);
-    const id = url.pathname.split('/').pop();
-    const user = readAuth(req);
-
-    if (req.method === 'GET') {
-      const r = await query(`select * from products where id=$1 and kind='service'`, [id]).catch(()=>({rowCount:0, rows:[]}));
-      if (r.rowCount) return res.status(200).json({ ok:true, data:r.rows[0] });
-
-      const rq = await query(`select * from service_requests where id=$1`, [id]);
-      const row = rq.rows[0];
-      if (!row) return res.status(404).json({ ok:false, error:'Not found' });
-      if (!user || (user.role!=='admin' && user.role!=='editor' && row.customer_id !== user.sub)) return res.status(403).json({ ok:false, error:'Forbidden' });
-      const msgs = await query(`select * from service_messages where request_id=$1 order by created_at`, [id]).catch(()=>({rows:[]}));
-      const files = await query(`select * from service_deliverables where request_id=$1 order by created_at`, [id]).catch(()=>({rows:[]}));
-      return res.status(200).json({ ok:true, data: { ...row, messages: msgs.rows, deliverables: files.rows } });
-    }
-
-    if (req.method === 'PATCH') {
-      const b = req.body || {};
-      const op = b.op;
-
-      if (op === 'quote') {
-        if (!user || !['admin','editor'].includes(user.role)) return res.status(403).json({ ok:false, error:'Forbidden' });
-        const { request_id, price_cents } = b;
-        if (!request_id || price_cents == null) return res.status(400).json({ ok:false, error:'request_id and price_cents required' });
-        const up = await query(`
-          update service_requests set status='quoted', price_cents=$1, updated_at=now()
-          where id=$2 returning *
-        `, [price_cents, request_id]);
-        return res.status(200).json({ ok:true, data: up.rows[0] });
-      }
-
-      if (op === 'accept') {
-        if (!user) return res.status(401).json({ ok:false, error:'Unauthorized' });
-        const { request_id } = b;
-        const r = await query(`select * from service_requests where id=$1`, [request_id]);
-        if (!r.rowCount) return res.status(404).json({ ok:false, error:'Not found' });
-        const row = r.rows[0];
-        if (row.customer_id !== user.sub) return res.status(403).json({ ok:false, error:'Forbidden' });
-        if (row.status !== 'quoted') return res.status(400).json({ ok:false, error:'Request is not quoted' });
-        const up = await query(`update service_requests set status='accepted', updated_at=now() where id=$1 returning *`, [request_id]);
-        return res.status(200).json({ ok:true, data: up.rows[0] });
-      }
-
-      if (op === 'paid') {
-        if (!user || !['admin','editor'].includes(user.role)) return res.status(403).json({ ok:false, error:'Forbidden' });
-        const { request_id } = b;
-        const up = await query(`update service_requests set status='paid', updated_at=now() where id=$1 returning *`, [request_id]);
-        return res.status(200).json({ ok:true, data: up.rows[0] });
-      }
-
-      if (op === 'deliver') {
-        if (!user || !['admin','editor'].includes(user.role)) return res.status(403).json({ ok:false, error:'Forbidden' });
-        const { request_id, label, file_key, mime_type, bytes } = b;
-        if (!request_id || !label || !file_key) return res.status(400).json({ ok:false, error:'request_id, label, file_key required' });
-        const ins = await query(`
-          insert into service_deliverables (request_id, label, file_key, mime_type, bytes)
-          values ($1,$2,$3,$4,$5) returning *
-        `, [request_id, label, file_key, mime_type || null, bytes || null]);
-        await query(`update service_requests set status='delivered', updated_at=now() where id=$1`, [request_id]);
-        return res.status(200).json({ ok:true, data: ins.rows[0] });
-      }
-
-      return res.status(400).json({ ok:false, error:'Unknown op' });
-    }
-
-    if (req.method === 'POST') {
-      const b = req.body || {};
-      if (b && b.op === 'message') {
-        if (!user) return res.status(401).json({ ok:false, error:'Unauthorized' });
-        const { request_id, body } = b;
-        if (!request_id || !body) return res.status(400).json({ ok:false, error:'request_id and body required' });
-        const r = await query(`select * from service_requests where id=$1`, [request_id]);
-        const row = r.rows[0];
-        if (!row) return res.status(404).json({ ok:false, error:'Not found' });
-        if (user.role!=='admin' && user.role!=='editor' && row.customer_id !== user.sub) return res.status(403).json({ ok:false, error:'Forbidden' });
-        const ins = await query(`
-          insert into service_messages (request_id, author_id, body)
-          values ($1,$2,$3) returning *
-        `, [request_id, user.sub, body]);
-        return res.status(200).json({ ok:true, data: ins.rows[0] });
-      }
-      return res.status(400).json({ ok:false, error:'Unknown op' });
-    }
-
-    return res.status(405).json({ ok:false, error:'Method not allowed' });
-  } catch (e) {
-    console.error(e);
-    return res.status(500).json({ ok:false, error:'Server error' });
+export default async function handler(req, res){
+  const id = req.url.split('/').pop();
+  if (req.method === 'GET'){
+    const r = await query('select * from products where id=$1', [id]);
+    if (!r.rowCount) return res.status(404).json({ ok:false, error:'Not found' });
+    return res.status(200).json({ ok:true, data:r.rows[0] });
   }
+  if (req.method === 'PATCH'){
+    const user = readAuth(req);
+    if (!user || !['admin','editor'].includes(user.role)) return res.status(403).json({ ok:false, error:'Forbidden' });
+    const body = req.body || {};
+    const fields = ['slug','title','subtitle','description','price_cents','badge','media','published'];
+    const set = [];
+    const vals = [];
+    let i=1;
+    for (const f of fields){ if (f in body){ set.push(`${f}=$${i++}`); vals.push(body[f]); } }
+    if (!set.length) return res.status(400).json({ ok:false, error:'No changes' });
+    vals.push(id);
+    const r = await query(`update products set ${set.join(', ')}, updated_at=now() where id=$${i} returning *`, vals);
+    return res.status(200).json({ ok:true, data:r.rows[0] });
+  }
+  if (req.method === 'DELETE'){
+    const user = readAuth(req);
+    if (!user || user.role!=='admin') return res.status(403).json({ ok:false, error:'Forbidden' });
+    await query('delete from products where id=$1', [id]);
+    return res.status(200).json({ ok:true, data:{ deleted:true } });
+  }
+  return res.status(405).json({ ok:false, error:'Method not allowed' });
 }
