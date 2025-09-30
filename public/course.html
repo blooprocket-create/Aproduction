@@ -1,0 +1,45 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Course — A.Production (of sorts)</title>
+<link rel="stylesheet" href="/styles/base.css"><link rel="stylesheet" href="/styles/components.css">
+<script defer src="/_vercel/speed-insights/script.js"></script>
+<script defer src="/_vercel/insights/script.js"></script>
+</head><body>
+  <div class="container">
+    <nav class="nav" id="nav"></nav>
+    <main class="content">
+      <section class="card">
+        <h1 id="title">Course</h1>
+        <p id="intro" class="muted"></p>
+      </section>
+      <section class="card">
+        <ul id="lessons" class="list"></ul>
+      </section>
+    </main>
+  </div>
+<script type="module">
+import { api } from '/scripts/api.js';
+import '/scripts/nav.js';
+
+function getParam(name){ const u=new URL(location.href); return u.searchParams.get(name); }
+const productId = getParam('id');
+if (!productId){ document.getElementById('title').textContent = 'Missing course id'; throw new Error('no id'); }
+
+const data = await api(`/products/${productId}`);
+document.getElementById('title').textContent = data.title || 'Course';
+document.getElementById('intro').textContent = (data.course && data.course.intro) || '';
+
+const ul = document.getElementById('lessons');
+(data.videos||[]).forEach(v => {
+  const li = document.createElement('li');
+  li.className = 'row';
+  const a = document.createElement('a');
+  a.textContent = v.title + (v.free_preview ? ' (preview)' : '');
+  a.href = v.video_url || '#';
+  a.target = '_blank';
+  if (!v.video_url){ a.classList.add('disabled'); a.onclick = (e)=>{ e.preventDefault(); alert('Purchase to unlock this lesson.'); }; }
+  li.appendChild(a);
+  ul.appendChild(li);
+});
+</script>
+</body></html>
