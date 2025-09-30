@@ -6,19 +6,28 @@
   <nav class="nav"><a href="/index.html">A.Production</a><span class="muted">(of sorts)</span><div style="margin-left:auto"><a href="/login.html">Login</a></div></nav>
   <div class="card" style="max-width:420px;margin:60px auto">
     <h2>Let’s make it official.</h2>
-    <form id="f" class="grid">
-      <input class="input" name="email" placeholder="Email" type="email" required>
-      <input class="input" name="password" placeholder="Password" type="password" required>
-      <button class="button" type="submit">Register</button>
+    <form id="register-form" method="post" action="#">
+      <input name="email" type="email" autocomplete="email" required />
+      <input name="password" type="password" autocomplete="new-password" required />
+      <button type="submit">Create account</button>
     </form>
   </div>
 </div>
 <script type="module">
   import { Auth } from '/scripts/api.js';
-  document.getElementById('f').onsubmit = async (e)=>{
-    e.preventDefault(); const fd = new FormData(e.target);
-    try{ await Auth.register(fd.get('email'), fd.get('password')); location.href = '/control-panel.html'; }
-    catch(err){ alert(err.message); }
-  };
+
+  const form = document.getElementById('register-form');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const email = form.email.value.trim().toLowerCase();
+    const password = form.password.value;
+
+    try {
+      await Auth.register(email, password);     // POST /api/auth/register
+      location.href = '/index.html';
+    } catch (err) {
+      alert(err.message || 'Register failed');
+    }
+  });
 </script>
 </body></html>
