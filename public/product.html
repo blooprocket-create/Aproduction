@@ -6,6 +6,16 @@
 <script defer src="/_vercel/speed-insights/script.js"></script>
 <script defer src="/_vercel/insights/script.js"></script>
 
+<style>
+  /* tiny helpers if not already present */
+  .hidden { display: none !important; }
+  a.disabled { opacity: .6; pointer-events: none; text-decoration: none; }
+  .list { list-style: none; padding: 0; margin: 0; }
+  .list .row { display: flex; align-items: center; padding: 6px 0; gap: 8px; }
+  .downloads h3 { margin-bottom: .5rem; }
+  .btn.secondary { opacity: .9; }
+  .btn.secondary.hidden { display: none; }
+</style>
 </head><body>
   <div class="container">
     <nav class="nav" id="nav">
@@ -33,50 +43,156 @@
         <a href="#" id="nav-logout">Logout</a>
       </div>
     </nav>
+
     <div id="content" class="grid">
       <div class="card product" id="detail"></div>
+
+      <!-- Course CTA (desktop) -->
       <a id="view-course" class="btn secondary hidden">View course</a>
+
+      <!-- Desktop Buy -->
       <button class="button desktop-only" id="buy">Buy Now</button>
+
+      <!-- Downloads list (visible if product declares assets; links unlock when owned) -->
+      <section id="downloads-section" class="card downloads hidden" style="grid-column: 1 / -1;">
+        <h3>Included Downloads</h3>
+        <ul id="downloads-list" class="list"></ul>
+      </section>
     </div>
   </div>
+
+  <!-- Sticky Buy bar (mobile) -->
   <div class="buybar mobile-only hidden" id="buybar">
     <div class="row" style="gap:10px"><span id="buybar-title" class="muted"></span></div>
     <div class="row" style="margin-left:auto;gap:10px">
       <div class="price" id="buybar-price"></div>
-      <a id="view-course" class="btn secondary hidden">View course</a>
+      <a id="buybar-course" class="btn secondary hidden">View course</a>
       <a href="#" class="button" id="buybar-btn">Buy Now</a>
     </div>
   </div>
+
 <script type="module">
   import { api, money, track } from '/scripts/api.js';
   import { wireNav } from '/scripts/nav.js';
   await wireNav('nav-products');
+
   const id = new URLSearchParams(location.search).get('id');
+  if (!id) {
+    alert('Missing product id');
+    throw new Error('no product id');
+  }
+
   let p = null;
-  try{ p = await api('/products/'+id); }catch(e){ alert(e.message); }
-  if(p){
-    const d = document.getElementById('detail');
-    d.innerHTML = `
-      <span class="badge">${(p.kind||'PRODUCT').toUpperCase()}</span>
-      <h1>${p.title}</h1>
-      <p class="muted">${p.description||''}</p>
-      <div class="price">${money(p.price_cents)} </div>
-    `;
-    const buy = async ()=>{
-      try{
-        await api('/orders', { method:'POST', body: JSON.stringify({ product_id: id, qty:1 }) });
-        track('purchase', { id, title: p.title, kind: p.kind, amount: (p.price_cents||0)/100 });
-        location.href='/account.html';
-      } catch(e){ alert(e.message); }
-    };
-    document.getElementById('buy').onclick = buy;
-    const bb = document.getElementById('buybar');
-    if (bb){
-      document.getElementById('buybar-title').textContent = p.title;
-      document.getElementById('buybar-price').textContent = money(p.price_cents);
-      document.getElementById('buybar-btn').onclick = (e)=>{ e.preventDefault(); buy(); };
-      bb.classList.remove('hidden');
+  try {
+    p = await api('/products/' + id);
+  } catch (e) {
+    alert(e.message || 'Failed to load product');
+  }
+  if (!p) return;
+
+  // Render basic product detail
+  const d = document.getElementById('detail');
+  d.innerHTML = `
+    <span class="badge">${(p.kind || 'PRODUCT').toUpperCase()}</span>
+    <h1>${p.title}</h1>
+    ${p.subtitle ? `<h3 class="muted">${p.subtitle}</h3>` : ''}
+    <p class="muted">${p.description || ''}</p>
+    <div class="price">${money(p.price_cents)} </div>
+  `;
+
+  // Course button(s)
+  const desktopCourseBtn = document.getElementById('view-course');
+  const mobileCourseBtn  = document.getElementById('buybar-course');
+  const courseHref = `/course.html?id=${p.id}`;
+  if (p.course) {
+    if (desktopCourseBtn) {
+      desktopCourseBtn.classList.remove('hidden');
+      desktopCourseBtn.href = courseHref;
     }
+    if (mobileCourseBtn) {
+      mobileCourseBtn.classList.remove('hidden');
+      mobileCourseBtn.href = courseHref;
+    }
+  } else {
+    desktopCourseBtn && desktopCourseBtn.classList.add('hidden');
+    mobileCourseBtn  && mobileCourseBtn.classList.add('hidden');
+  }
+
+  // Downloads section (shows if product *declares* assets; links unlock only when owned)
+  const downloadsSection = document.getElementById('downloads-section');
+  const downloadsList = document.getElementById('downloads-list');
+  if (downloadsSection && downloadsList) {
+    downloadsList.innerHTML = '';
+    (p.assets || []).forEach(a => {
+      const li = document.createElement('li');
+      li.className = 'row';
+
+      const link = document.createElement('a');
+      link.textContent = a.label;
+
+      if (a.file_key) {
+        // owned → entitlement-checked redirect
+        link.href = `/api/products/${p.id}?asset=${a.id}&download=1`;
+        link.target = '_blank';
+        link.rel = 'noopener';
+      } else {
+        // not owned → gray/locked
+        link.href = '#';
+        link.classList.add('disabled');
+        link.addEventListener('click', (e) => {
+          e.preventDefault();
+          alert('Purchase to unlock this download.');
+        });
+      }
+
+      li.appendChild(link);
+      downloadsList.appendChild(li);
+    });
+
+    if ((p.assets || []).length > 0) {
+      downloadsSection.classList.remove('hidden');
+    } else {
+      downloadsSection.classList.add('hidden');
+    }
+  }
+
+  // Buy action
+  const buy = async () => {
+    try {
+      await api('/orders', { method: 'POST', body: JSON.stringify({ product_id: id, qty: 1 }) });
+      track('purchase', { id, title: p.title, kind: p.kind, amount: (p.price_cents || 0) / 100 });
+      location.href = '/account.html';
+    } catch (e) { alert(e.message); }
+  };
+
+  // Desktop buy button
+  const buyBtn = document.getElementById('buy');
+  if (buyBtn) {
+    if (p.owned) {
+      buyBtn.textContent = 'Owned';
+      buyBtn.disabled = true;
+      buyBtn.classList.add('ghost');
+    } else {
+      buyBtn.onclick = buy;
+    }
+  }
+
+  // Mobile buybar
+  const bb = document.getElementById('buybar');
+  if (bb) {
+    document.getElementById('buybar-title').textContent = p.title;
+    document.getElementById('buybar-price').textContent = money(p.price_cents);
+    const buybarBtn = document.getElementById('buybar-btn');
+    if (p.owned) {
+      buybarBtn.textContent = 'Owned';
+      buybarBtn.classList.add('ghost');
+      buybarBtn.href = '/account.html';
+      buybarBtn.onclick = null;
+    } else {
+      buybarBtn.textContent = 'Buy Now';
+      buybarBtn.onclick = (e) => { e.preventDefault(); buy(); };
+    }
+    bb.classList.remove('hidden');
   }
 </script>
 <script type="module" src="/scripts/nav.js"></script>
