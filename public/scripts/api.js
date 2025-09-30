@@ -11,7 +11,7 @@ export const Auth = {
   me: () => api('/auth/me'),
   login: (email, password) => api('/auth/login', { method:'POST', body: JSON.stringify({ email, password }) }),
   register: (email, password) => api('/auth/register', { method:'POST', body: JSON.stringify({ email, password }) }),
-  logout: () => api('/auth/logout')
+  logout: () => api('/auth/logout', { method:'POST' })
 };
 export function money(cents){ return new Intl.NumberFormat('en-US',{ style:'currency', currency:'USD' }).format((cents||0)/100); }
 export async function currentUser(){

@@ -47,11 +47,21 @@ body{
 .nav{display:flex;justify-content:space-between;align-items:center;padding:18px 0}
 .nav a{color:var(--muted);text-decoration:none;margin:0 12px;position:relative;transition: color .2s ease}
 .nav a:hover{color:white}
+.nav a.active{color:white}
 .nav a::after{
   content:"";position:absolute;left:0;right:0;bottom:-6px;height:2px;background:linear-gradient(90deg,var(--brand),var(--brand-2));
   transform:scaleX(0); transform-origin:left; transition:transform .25s ease;
 }
 .nav a:hover::after{ transform:scaleX(1); }
+
+.brand{display:flex;align-items:center;gap:10px}
+.logo{width:30px;height:30px;display:inline-block}
+.logo svg{width:30px;height:30px;display:block;filter: drop-shadow(0 0 12px rgba(138,124,255,.25))}
+@keyframes dash { from { stroke-dashoffset: 90 } to { stroke-dashoffset: 0 } }
+.logo .ring{stroke:url(#g1);stroke-width:2;fill:none;stroke-dasharray:90;animation: dash 1.8s ease forwards}
+.logo .dot{fill:url(#g2)}
+.logo:hover .dot{transform-origin:50% 50%; animation: pulse .9s ease-in-out infinite alternate}
+@keyframes pulse { to { transform: scale(1.15) } }
 
 .hero{padding:80px 0 40px}
 .hero h1{font-size:56px;line-height:1.05;margin:0 0 12px}

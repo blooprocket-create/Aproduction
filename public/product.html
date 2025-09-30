@@ -3,29 +3,44 @@
 <title>Product — A.Production (of sorts)</title>
 <link rel="stylesheet" href="/styles/base.css"><link rel="stylesheet" href="/styles/components.css">
 </head><body><div class="container">
-  <nav class="nav">
-    <div class="row"><span class="badge">A.Production</span><span class="muted" style="margin-left:8px">(of sorts)</span></div>
-    <div>
-      <a href="/index.html" id="nav-home">Home</a>
-      <a href="/services.html" id="nav-services">Services</a>
-      <a href="/products.html" id="nav-products">Products</a>
-      <a href="/account.html" id="nav-account">Account</a>
-      <a href="/control-panel.html" id="nav-control">Control</a>
-      <a href="/login.html" id="nav-login">Login</a>
-      <a href="#" id="nav-logout">Logout</a>
-    </div>
-  </nav>
+
+    <nav class="nav">
+
+<div class="brand">
+  <span class="logo">
+    <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="g1" x1="0" x2="1">
+          <stop offset="0%" stop-color="#8a7cff"/>
+          <stop offset="100%" stop-color="#e45aff"/>
+        </linearGradient>
+        <radialGradient id="g2" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#e45aff"/>
+          <stop offset="100%" stop-color="#8a7cff"/>
+        </radialGradient>
+      </defs>
+      <circle class="ring" cx="20" cy="20" r="14" />
+      <circle class="dot" cx="28" cy="12" r="3"/>
+    </svg>
+  </span>
+  <span class="badge">A.Production</span><span class="muted" style="margin-left:8px">(of sorts)</span>
+</div>
+
+      <div>
+        <a href="/index.html" id="nav-home">Home</a> <a href="/services.html" id="nav-services">Services</a> <a href="/products.html" id="nav-products">Products</a> <a href="/account.html" id="nav-account">Account</a> <a href="/control-panel.html" id="nav-control">Control</a> <a href="/login.html" id="nav-login">Login</a> <a href="#" id="nav-logout">Logout</a>
+      </div>
+    </nav>
+
   <div id="content" class="grid">
     <div class="card product" id="detail"></div>
     <button class="button" id="buy">Buy Now</button>
   </div>
 </div>
 <script type="module">
-  import { api, money, currentUser } from '/scripts/api.js';
+  import { api, money } from '/scripts/api.js';
   import { wireNav } from '/scripts/nav.js';
   await wireNav('nav-products');
   const id = new URLSearchParams(location.search).get('id');
-  const me = await currentUser();
   let p = null;
   try{ p = await api('/products/'+id); }catch(e){ alert(e.message); }
   if(p){
@@ -34,8 +49,7 @@
       <span class="badge">${(p.kind||'PRODUCT').toUpperCase()}</span>
       <h1>${p.title}</h1>
       <p class="muted">${p.description||''}</p>
-      <div class="price">${money(p.price_cents)}</div>
-      ${me && ['admin','editor'].includes(me.role) ? `<a class='edit-pill' href='/edit.html?id=${p.id}&k=product'>Edit</a>` : ''}
+      <div class="price">${money(p.price_cents)} </div>
     `;
     document.getElementById('buy').onclick = async ()=>{
       try{ await api('/orders', { method:'POST', body: JSON.stringify({ product_id: id, qty:1 }) }); location.href='/account.html'; }
@@ -43,4 +57,5 @@
     };
   }
 </script>
+<script type="module" src="/scripts/nav.js"></script>
 </body></html>

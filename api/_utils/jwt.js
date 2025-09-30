@@ -24,8 +24,14 @@ export function readAuth(req) {
 }
 
 export function cookieHeaderFromToken(token){
-  return cookie.serialize(COOKIE, token, { httpOnly: true, sameSite: 'lax', secure: true, path: '/' });
+  return cookie.serialize(COOKIE, token, {
+    httpOnly: true, sameSite: 'lax', secure: true, path: '/',
+    maxAge: 60*60*24*7
+  });
 }
 export function clearCookieHeader(){
-  return cookie.serialize(COOKIE, '', { httpOnly: true, sameSite: 'lax', secure: true, path: '/', maxAge: 0 });
+  return cookie.serialize(COOKIE, '', {
+    httpOnly: true, sameSite: 'lax', secure: true, path: '/',
+    expires: new Date(0), maxAge: 0
+  });
 }

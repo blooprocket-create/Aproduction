@@ -1,11 +1,15 @@
 import { currentUser, Auth } from '/scripts/api.js';
 
+let wired = false;
+
 function show(el){ el && (el.style.display=''); }
 function hide(el){ el && (el.style.display='none'); }
 
 export async function wireNav(active=''){
-  const me = await currentUser();
+  if (wired) return;
+  wired = true;
 
+  const me = await currentUser();
   const linkLogin = document.getElementById('nav-login');
   const linkLogout = document.getElementById('nav-logout');
   const linkControl = document.getElementById('nav-control');
@@ -17,7 +21,11 @@ export async function wireNav(active=''){
     linkAccount.textContent = 'Account';
     show(linkLogout);
     linkLogout.textContent = `Logout (${me.email.split('@')[0]})`;
-    linkLogout.onclick = async (e)=>{ e.preventDefault(); await Auth.logout(); location.href = '/'; };
+    linkLogout.addEventListener('click', async (e)=>{
+      e.preventDefault();
+      try { await Auth.logout(); } catch {}
+      location.href = '/';
+    }, { once:true });
     if (['admin','editor'].includes(me.role)){ show(linkControl); } else { hide(linkControl); }
   } else {
     show(linkLogin);
