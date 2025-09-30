@@ -4,22 +4,39 @@
 <link rel="stylesheet" href="/styles/base.css"><link rel="stylesheet" href="/styles/components.css">
 </head><body>
   <div class="container">
-    <nav class="nav"><a href="/index.html" class="active">A.Production</a><span class="muted">(of sorts)</span><div style="margin-left:auto"><a href="/products.html">Products</a> <a href="/login.html">Login</a></div></nav>
+    <nav class="nav">
+      <div class="row"><span class="badge">A.Production</span><span class="muted" style="margin-left:8px">(of sorts)</span></div>
+      <div>
+        <a href="/index.html" id="nav-home">Home</a>
+        <a href="/services.html" id="nav-services">Services</a>
+        <a href="/products.html" id="nav-products">Products</a>
+        <a href="/account.html" id="nav-account">Account</a>
+        <a href="/control-panel.html" id="nav-control">Control</a>
+        <a href="/login.html" id="nav-login">Login</a>
+        <a href="#" id="nav-logout">Logout</a>
+      </div>
+    </nav>
     <h1>Services</h1>
-    <p class="muted">White‑glove builds, done properly. No mystery fees, no mystery meat.</p>
     <div class="grid cols-3" id="list"></div>
   </div>
 <script type="module">
-  import { api } from '/scripts/api.js';
-  import { card } from '/scripts/ui.js';
+  import { api, currentUser } from '/scripts/api.js';
+  import { wireNav } from '/scripts/nav.js';
+  await wireNav('nav-services');
+  const me = await currentUser();
   const root = document.getElementById('list');
-  let items = [];
-  try { items = await api('/services'); } catch(e) { console.warn(e); }
+  const items = await api('/services');
   (items||[]).forEach(s=>{
     const a = document.createElement('a');
     a.href = `/service.html?id=${s.id}`;
-    card(a, { title:s.title, price_cents:s.price_cents, badge:'SERVICE', href:a.href });
-    root.appendChild(a.firstElementChild);
+    a.className = 'card product';
+    a.innerHTML = `
+      <span class="badge">${(s.kind||'SERVICE').toUpperCase()}</span>
+      <h3>${s.title}</h3>
+      <p class="muted">${s.subtitle||s.description||''}</p>
+      ${me && ['admin','editor'].includes(me.role) ? `<a class='edit-pill' href='/edit.html?id=${s.id}&k=service'>Edit</a>` : ''}
+    `;
+    root.appendChild(a);
   });
 </script>
 </body></html>

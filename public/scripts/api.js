@@ -14,3 +14,6 @@ export const Auth = {
   logout: () => api('/auth/logout')
 };
 export function money(cents){ return new Intl.NumberFormat('en-US',{ style:'currency', currency:'USD' }).format((cents||0)/100); }
+export async function currentUser(){
+  try { return await Auth.me(); } catch { return null; }
+}

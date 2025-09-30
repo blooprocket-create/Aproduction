@@ -1,6 +1,12 @@
-.product{display:flex;flex-direction:column;gap:10px}
+.product{display:flex;flex-direction:column;gap:10px;position:relative}
+.edit-pill{position:absolute;top:12px;right:12px;font-size:.75rem;padding:6px 10px;border-radius:999px;background:#1a1c28;border:1px solid #2a2d3f;color:#e8e9ef;text-decoration:none;opacity:.9}
+.edit-pill:hover{opacity:1}
 .table{width:100%;border-collapse:separate;border-spacing:0 10px}
 .table tr{background:var(--panel)}
 .table td, .table th{padding:14px 18px}
 .table tr td:first-child, .table tr th:first-child{border-radius:12px 0 0 12px}
 .table tr td:last-child, .table tr th:last-child{border-radius:0 12px 12px 0}
+.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:12px}
+.metric{background:var(--panel);border:1px solid #1f2030;border-radius:14px;padding:16px;box-shadow:var(--shadow)}
+.metric h4{margin:0 0 6px 0;color:var(--muted);font-weight:600}
+.metric .val{font-size:28px;font-weight:800}
