@@ -6,19 +6,29 @@
   <nav class="nav"><a href="/index.html">A.Production</a><span class="muted">(of sorts)</span><div style="margin-left:auto"><a href="/register.html">Register</a></div></nav>
   <div class="card" style="max-width:420px;margin:60px auto">
     <h2>Welcome back, legend.</h2>
-    <form id="f" class="grid">
-      <input class="input" name="email" placeholder="Email" type="email" required>
-      <input class="input" name="password" placeholder="Password" type="password" required>
-      <button class="button" type="submit">Login</button>
+    <form id="login-form" method="post" action="#">
+      <input name="email" type="email" autocomplete="email" required />
+      <input name="password" type="password" autocomplete="current-password" required />
+      <button type="submit">Login</button>
     </form>
   </div>
 </div>
+
 <script type="module">
   import { Auth } from '/scripts/api.js';
-  document.getElementById('f').onsubmit = async (e)=>{
-    e.preventDefault(); const fd = new FormData(e.target);
-    try{ await Auth.login(fd.get('email'), fd.get('password')); location.href = '/control-panel.html'; }
-    catch(err){ alert(err.message); }
-  };
+
+  const form = document.getElementById('login-form');
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();                         // ← stop the browser GET
+    const email = form.email.value.trim().toLowerCase();
+    const password = form.password.value;
+
+    try {
+      await Auth.login(email, password);        // POST /api/auth/login (JSON)
+      location.href = '/index.html';            // or /account.html
+    } catch (err) {
+      alert(err.message || 'Login failed');
+    }
+  });
 </script>
 </body></html>
