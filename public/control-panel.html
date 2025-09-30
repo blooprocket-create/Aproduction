@@ -1,156 +1,111 @@
-<!doctype html><html><head>
+<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Control Panel — A.Production (of sorts)</title>
 <link rel="stylesheet" href="/styles/base.css"><link rel="stylesheet" href="/styles/components.css">
-
 <script defer src="/_vercel/speed-insights/script.js"></script>
 <script defer src="/_vercel/insights/script.js"></script>
-
+<style>
+  .grid { display:grid; gap:16px; grid-template-columns: 1fr; }
+  @media (min-width: 900px){ .grid{ grid-template-columns: 1fr 1fr; } }
+  table { width:100%; border-collapse: collapse; }
+  th,td { padding:8px 10px; border-bottom: 1px solid rgba(255,255,255,.06); vertical-align: top; }
+  .pill { padding:.2rem .5rem; border-radius: 999px; background: rgba(255,255,255,.08); font-size: .85rem; }
+  .row-actions { display:flex; gap:8px; flex-wrap: wrap; }
+</style>
 </head><body>
-<div class="container">
-  <nav class="nav" id="nav">
-    <div class="brand">
-      <span class="logo">
-        <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-          <defs>
-            <linearGradient id="g1" x1="0" x2="1"><stop offset="0%" stop-color="#8a7cff"/><stop offset="100%" stop-color="#e45aff"/></linearGradient>
-            <radialGradient id="g2" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#e45aff"/><stop offset="100%" stop-color="#8a7cff"/></radialGradient>
-          </defs>
-          <circle class="ring" cx="20" cy="20" r="14" />
-          <circle class="dot" cx="28" cy="12" r="3"/>
-        </svg>
-      </span>
-      <span class="badge">A.Production</span><span class="muted" style="margin-left:8px">(of sorts)</span>
-    </div>
-    <button class="nav-toggle" id="nav-toggle" aria-label="Menu"></button>
-    <div class="nav-links" id="nav-links">
-      <a href="/index.html" id="nav-home">Home</a>
-      <a href="/services.html" id="nav-services">Services</a>
-      <a href="/products.html" id="nav-products">Products</a>
-      <a href="/account.html" id="nav-account">Account</a>
-      <a href="/control-panel.html" id="nav-control">Control</a>
-      <a href="/login.html" id="nav-login">Login</a>
-      <a href="#" id="nav-logout">Logout</a>
-    </div>
-  </nav>
-  <h1>Control Panel</h1>
-  <div id="who" class="muted"></div>
-  <div id="admin" class="grid hidden">
-    <div class="metrics" id="metrics">
-      <div class="metric"><h4>Users</h4><div class="val" id="m-users">—</div></div>
-      <div class="metric"><h4>Published</h4><div class="val" id="m-published">—</div></div>
-      <div class="metric"><h4>Revenue</h4><div class="val" id="m-revenue">—</div></div>
-    </div>
-    <div class="card"><h3>Create Product/Service</h3>
-      <form id="create" class="grid">
-        <select name="kind"><option value="product">Product</option><option value="course">Course</option><option value="service">Service</option></select>
-        <input class="input" name="slug" placeholder="slug" required>
-        <input class="input" name="title" placeholder="title" required>
-        <textarea class="input" name="description" placeholder="description"></textarea>
-        <input class="input" name="price" placeholder="price in USD (e.g. 99.00)" type="number" min="0" step="0.01" required>
-        <label><input type="checkbox" name="published"> Published</label>
-        <button class="button" type="submit">Create</button>
-      </form>
-    </div>
-    <div class="card" style="grid-column: span 2;">
-      <h3>Catalog</h3>
-      <div class="table-wrap">
-        <table class="table" id="catalog">
-          <thead><tr><th>Kind</th><th>Title</th><th>Slug</th><th>Price</th><th>Published</th><th>ID</th><th>Actions</th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-      <div id="catalog-cards" class="grid hidden"></div>
-    </div>
+  <div class="container">
+    <nav class="nav" id="nav"></nav>
+    <main class="content">
+      <h1>Control Panel</h1>
+
+      <section class="grid">
+        <section class="card">
+          <h3>Service Requests</h3>
+          <p class="muted">Quote, mark paid, and deliver files.</p>
+          <div id="sr-wrap">
+            <table id="sr-table">
+              <thead>
+                <tr><th>When</th><th>Service</th><th>Customer</th><th>Status</th><th>Quote</th><th>Actions</th></tr>
+              </thead>
+              <tbody id="sr-body"></tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+    </main>
   </div>
-</div>
-<div class="nav-overlay"></div>
+
 <script type="module">
-  import { api, Auth, money } from '/scripts/api.js';
+  import { currentUser, Service, money } from '/scripts/api.js';
   import { wireNav } from '/scripts/nav.js';
+
+  const me = await currentUser();
   await wireNav('nav-control');
-  const who = document.getElementById('who');
-  const admin = document.getElementById('admin');
-  try{
-    const me = await Auth.me();
-    if (!['admin','editor'].includes(me.role)) { location.href='/'; }
-    who.textContent = `Signed in as ${me.email} — role: ${me.role}`;
-    admin.classList.remove('hidden');
-    if (me.role==='admin'){
-      const s = await api('/admin/stats');
-      document.getElementById('m-users').textContent = Number(s.users||0).toLocaleString();
-      document.getElementById('m-published').textContent = Number(s.published||0).toLocaleString();
-      document.getElementById('m-revenue').textContent = money(Number(s.revenue_cents||0));
-    }
-    document.getElementById('create').onsubmit = async (e)=>{
-      e.preventDefault(); const fd = new FormData(e.target);
-      const payload = Object.fromEntries(fd.entries());
-      payload.published = !!fd.get('published');
-      payload.price_cents = Math.round(Number(payload.price||0)*100);
-      delete payload.price;
-      const path = payload.kind==='service'?'/services':'/products';
-      try{ await api(path, { method:'POST', body: JSON.stringify(payload) }); e.target.reset(); await loadCatalog(); }
-      catch(err){ alert(err.message); }
-    };
-    async function loadCatalog(){
-      const [prods, servs] = await Promise.all([ api('/products?all=1'), api('/services?all=1') ]);
-      const rows = [...(prods||[]), ...(servs||[])];
-      const tb = document.querySelector('#catalog tbody');
-      tb.innerHTML = '';
-      rows.forEach(r=> tb.appendChild(makeRow(r)) );
-    }
-    function makeRow(r){
+  if (!me || !['admin','editor'].includes(me.role)) {
+    document.body.innerHTML = '<div class="container"><main class="content"><h2>Forbidden</h2></main></div>';
+    throw new Error('forbidden');
+  }
+
+  const tbody = document.getElementById('sr-body');
+
+  async function load(){
+    const rows = await Service.adminRequests();
+    tbody.innerHTML = '';
+    for (const r of rows){
       const tr = document.createElement('tr');
-      tr.dataset.id = r.id; tr.dataset.kind = r.kind;
       tr.innerHTML = `
-        <td>${(r.kind||'').toUpperCase()}</td>
-        <td class="cell" data-field="title">${r.title}</td>
-        <td class="cell" data-field="slug">${r.slug}</td>
-        <td class="cell" data-field="price_cents">${money(r.price_cents)}</td>
-        <td class="cell" data-field="published">${r.published?'Yes':'No'}</td>
-        <td>${r.id.slice(0,8)}…</td>
-        <td><a href="#" class="pill act-edit">Edit</a></td>`;
-      tr.querySelector('.act-edit').addEventListener('click', (e)=>{ e.preventDefault(); enterEdit(tr, r); });
-      return tr;
-    }
-    function enterEdit(tr, r){
-      const cells = tr.querySelectorAll('.cell');
-      cells.forEach(td=>{
-        const field = td.dataset.field;
-        if (field==='published'){ td.innerHTML = `<div class="cell-edit"><input type="checkbox" ${r.published?'checked':''}></div>`; }
-        else if (field==='price_cents'){ td.innerHTML = `<div class="cell-edit"><input type="number" min="0" step="0.01" value="${(r.price_cents||0)/100}"></div>`; }
-        else { td.innerHTML = `<div class="cell-edit"><input type="text" value="${r[field]||''}"></div>`; }
-      });
-      const actions = tr.querySelector('td:last-child');
-      actions.innerHTML = `<a href="#" class="pill act-save">Save</a> <a href="#" class="pill act-cancel">Cancel</a>`;
-      const save = actions.querySelector('.act-save');
-      const cancel = actions.querySelector('.act-cancel');
-      const submit = async ()=>{
-        const payload = {};
-        tr.querySelectorAll('.cell').forEach(td=>{
-          const field = td.dataset.field;
-          const input = td.querySelector('input');
-          if (!input) return;
-          if (field==='price_cents'){ payload[field] = Math.round(Number(input.value||0)*100); }
-          else if (field==='published'){ payload[field] = !!input.checked; }
-          else { payload[field] = input.value; }
+        <td>${new Date(r.created_at).toLocaleString()}</td>
+        <td>${r.service_title}</td>
+        <td>${r.customer_email||''}</td>
+        <td><span class="pill">${r.status}</span></td>
+        <td>${r.price_cents != null ? money(r.price_cents) : '-'}</td>
+        <td class="row-actions"></td>
+      `;
+      const actions = tr.querySelector('.row-actions');
+
+      if (r.status === 'submitted' || r.status === 'quoted'){
+        const quote = document.createElement('form');
+        quote.innerHTML = \`
+          <input name="price" type="number" min="0" step="1" placeholder="Price (cents)" style="width:140px">
+          <button class="button small" type="submit">\${r.status==='quoted'?'Update quote':'Quote'}</button>\`;
+        quote.addEventListener('submit', async (e)=>{
+          e.preventDefault();
+          const price_cents = parseInt(quote.price.value || '0', 10);
+          await Service.quote(r.id, price_cents);
+          await load();
         });
-        try{
-          const base = r.kind==='service'? '/services' : '/products';
-          await api(`${base}/${r.id}`, { method:'PATCH', body: JSON.stringify(payload) });
-          const fresh = await api(`${base}/${r.id}`);
-          const newTr = makeRow(fresh);
-          tr.replaceWith(newTr);
-        } catch(err){
-          alert(err.message);
-        }
-      };
-      save.addEventListener('click', (e)=>{ e.preventDefault(); submit(); });
-      cancel.addEventListener('click', (e)=>{ e.preventDefault(); loadCatalog(); });
-      tr.addEventListener('keydown', (e)=>{ if (e.key==='Enter') { e.preventDefault(); submit(); } });
+        actions.appendChild(quote);
+      }
+
+      if (r.status === 'accepted' || r.status === 'quoted'){
+        const paid = document.createElement('button');
+        paid.className = 'button small';
+        paid.textContent = 'Mark Paid';
+        paid.onclick = async ()=>{ await Service.markPaid(r.id); await load(); };
+        actions.appendChild(paid);
+      }
+
+      if (r.status === 'paid' || r.status === 'delivered'){
+        const deliv = document.createElement('form');
+        deliv.innerHTML = \`
+          <input name="label" placeholder="Label" required style="width:140px">
+          <input name="url" placeholder="https://file-url" required style="width:220px">
+          <button class="button small" type="submit">Deliver</button>\`;
+        deliv.addEventListener('submit', async (e)=>{
+          e.preventDefault();
+          const label = deliv.label.value.trim();
+          const file_key = deliv.url.value.trim();
+          await Service.deliver(r.id, { label, file_key });
+          await load();
+        });
+        actions.appendChild(deliv);
+      }
+
+      tbody.appendChild(tr);
     }
-    await loadCatalog();
-  }catch(e){ location.href = '/login.html'; }
+  }
+
+  await load();
 </script>
 <script type="module" src="/scripts/nav.js"></script>
 </body></html>
