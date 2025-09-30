@@ -1,36 +1,45 @@
 <!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>A.Production (of sorts)</title>
+<title>Services — A.Production (of sorts)</title>
 <link rel="stylesheet" href="/styles/base.css"><link rel="stylesheet" href="/styles/components.css">
-</head><body><div class="container">
 
+<script defer src="/_vercel/speed-insights/script.js"></script>
+<script defer src="/_vercel/insights/script.js"></script>
+
+</head><body>
+  <div class="container">
     <nav class="nav" id="nav">
-
-<div class="brand">
-  <span class="logo">
-    <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <linearGradient id="g1" x1="0" x2="1"><stop offset="0%" stop-color="#8a7cff"/><stop offset="100%" stop-color="#e45aff"/></linearGradient>
-        <radialGradient id="g2" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#e45aff"/><stop offset="100%" stop-color="#8a7cff"/></radialGradient>
-      </defs>
-      <circle class="ring" cx="20" cy="20" r="14" />
-      <circle class="dot" cx="28" cy="12" r="3"/>
-    </svg>
-  </span>
-  <span class="badge">A.Production</span><span class="muted" style="margin-left:8px">(of sorts)</span>
-</div>
-
-      <button class="nav-toggle" id="nav-toggle" aria-label="Menu">☰</button>
+      <div class="brand">
+        <span class="logo">
+          <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="g1" x1="0" x2="1"><stop offset="0%" stop-color="#8a7cff"/><stop offset="100%" stop-color="#e45aff"/></linearGradient>
+              <radialGradient id="g2" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#e45aff"/><stop offset="100%" stop-color="#8a7cff"/></radialGradient>
+            </defs>
+            <circle class="ring" cx="20" cy="20" r="14" />
+            <circle class="dot" cx="28" cy="12" r="3"/>
+          </svg>
+        </span>
+        <span class="badge">A.Production</span><span class="muted" style="margin-left:8px">(of sorts)</span>
+      </div>
+      <button class="nav-toggle" id="nav-toggle" aria-label="Menu"></button>
       <div class="nav-links" id="nav-links">
-        <a href="/index.html" id="nav-home">Home</a> <a href="/services.html" id="nav-services">Services</a> <a href="/products.html" id="nav-products">Products</a> <a href="/account.html" id="nav-account">Account</a> <a href="/control-panel.html" id="nav-control">Control</a> <a href="/login.html" id="nav-login">Login</a> <a href="#" id="nav-logout">Logout</a>
+        <a href="/index.html" id="nav-home">Home</a>
+        <a href="/services.html" id="nav-services">Services</a>
+        <a href="/products.html" id="nav-products">Products</a>
+        <a href="/account.html" id="nav-account">Account</a>
+        <a href="/control-panel.html" id="nav-control">Control</a>
+        <a href="/login.html" id="nav-login">Login</a>
+        <a href="#" id="nav-logout">Logout</a>
       </div>
     </nav>
-
-
-<h1>Services</h1>
-<div class="grid cols-3" id="list"></div>
+    <h1>Services</h1>
+    <div class="grid cols-3" id="list"></div>
+  </div>
 <script type="module">
   import { api } from '/scripts/api.js';
+  import { wireNav } from '/scripts/nav.js';
+  await wireNav('nav-services');
   const root = document.getElementById('list');
   const items = await api('/services');
   (items||[]).forEach(s=>{
@@ -45,10 +54,5 @@
     root.appendChild(a);
   });
 </script>
-
-</div>
-<script type="module">
-  import { wireNav } from '/scripts/nav.js';
-  await wireNav('nav-services');
-</script>
+<script type="module" src="/scripts/nav.js"></script>
 </body></html>

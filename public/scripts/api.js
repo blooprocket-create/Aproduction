@@ -17,3 +17,7 @@ export function money(cents){ return new Intl.NumberFormat('en-US',{ style:'curr
 export async function currentUser(){
   try { return await Auth.me(); } catch { return null; }
 }
+// Vercel Web Analytics (window.va) convenience wrapper (no-op if not present)
+export function track(name, data={}){
+  try { if (typeof window !== 'undefined' && window.va && typeof window.va.track==='function') window.va.track(name, data); } catch {}
+}
