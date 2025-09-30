@@ -28,38 +28,51 @@
       <a href="#" id="nav-logout">Logout</a>
     </div>
   </nav>
+
   <h1>Control Panel</h1>
   <div id="who" class="muted"></div>
 
+  <div class="tabs">
+    <button class="tab active" data-target="sec-stats">Stats</button>
+    <button class="tab" data-target="sec-create">Create</button>
+    <button class="tab" data-target="sec-catalog">Catalog</button>
+  </div>
+
   <div id="admin" class="grid hidden">
-    <div class="metrics" id="metrics">
-      <div class="metric"><h4>Users</h4><div class="val" id="m-users">—</div></div>
-      <div class="metric"><h4>Published</h4><div class="val" id="m-published">—</div></div>
-      <div class="metric"><h4>Revenue</h4><div class="val" id="m-revenue">—</div></div>
-    </div>
-
-    <div class="card"><h3>Create Product/Service</h3>
-      <form id="create" class="grid">
-        <select name="kind"><option value="product">Product</option><option value="course">Course</option><option value="service">Service</option></select>
-        <input class="input" name="slug" placeholder="slug" required>
-        <input class="input" name="title" placeholder="title" required>
-        <textarea class="input" name="description" placeholder="description"></textarea>
-        <input class="input" name="price" placeholder="price in USD (e.g. 99.00)" type="number" min="0" step="0.01" required>
-        <label><input type="checkbox" name="published"> Published</label>
-        <button class="button" type="submit">Create</button>
-      </form>
-    </div>
-
-    <div class="card" style="grid-column: span 2;">
-      <h3>Catalog</h3>
-      <div class="table-wrap">
-        <table class="table" id="catalog">
-          <thead><tr><th>Kind</th><th>Title</th><th>Slug</th><th>Price</th><th>Published</th><th>ID</th><th>Actions</th></tr></thead>
-          <tbody></tbody>
-        </table>
+    <section id="sec-stats" class="grid">
+      <div class="metrics" id="metrics">
+        <div class="metric"><h4>Users</h4><div class="val" id="m-users">—</div></div>
+        <div class="metric"><h4>Published</h4><div class="val" id="m-published">—</div></div>
+        <div class="metric"><h4>Revenue</h4><div class="val" id="m-revenue">—</div></div>
       </div>
-      <div id="catalog-cards" class="grid hidden"></div>
-    </div>
+    </section>
+
+    <section id="sec-create" class="grid hidden">
+      <div class="card"><h3>Create Product/Service</h3>
+        <form id="create" class="grid">
+          <select name="kind"><option value="product">Product</option><option value="course">Course</option><option value="service">Service</option></select>
+          <input class="input" name="slug" placeholder="slug" required>
+          <input class="input" name="title" placeholder="title" required>
+          <textarea class="input" name="description" placeholder="description"></textarea>
+          <input class="input" name="price" placeholder="price in USD (e.g. 99.00)" type="number" min="0" step="0.01" required>
+          <label><input type="checkbox" name="published"> Published</label>
+          <button class="button" type="submit">Create</button>
+        </form>
+      </div>
+    </section>
+
+    <section id="sec-catalog" class="grid hidden">
+      <div class="card">
+        <h3>Catalog</h3>
+        <div class="table-wrap">
+          <table class="table" id="catalog">
+            <thead><tr><th>Kind</th><th>Title</th><th>Slug</th><th>Price</th><th>Published</th><th>ID</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div id="catalog-cards" class="grid hidden"></div>
+      </div>
+    </section>
   </div>
 </div>
 <div class="nav-overlay"></div>
@@ -72,6 +85,17 @@
   const admin = document.getElementById('admin');
   const cardsWrap = document.getElementById('catalog-cards');
   const isMobile = () => matchMedia('(max-width: 720px)').matches;
+
+  const tabs = Array.from(document.querySelectorAll('.tab'));
+  const sections = ['sec-stats','sec-create','sec-catalog'].map(id=>document.getElementById(id));
+  function setTab(targetId){
+    tabs.forEach(t => t.classList.toggle('active', t.dataset.target===targetId));
+    sections.forEach(s => s.classList.toggle('hidden', s.id!==targetId));
+    localStorage.setItem('cp_tab', targetId);
+  }
+  tabs.forEach(t => t.addEventListener('click', ()=> setTab(t.dataset.target)));
+  const saved = localStorage.getItem('cp_tab');
+  if (saved) setTab(saved); else setTab('sec-stats');
 
   try{
     const me = await Auth.me();
@@ -93,7 +117,7 @@
       payload.price_cents = Math.round(Number(payload.price||0)*100);
       delete payload.price;
       const path = payload.kind==='service'?'/services':'/products';
-      try{ await api(path, { method:'POST', body: JSON.stringify(payload) }); e.target.reset(); await loadCatalog(); }
+      try{ await api(path, { method:'POST', body: JSON.stringify(payload) }); e.target.reset(); await loadCatalog(); setTab('sec-catalog'); }
       catch(err){ alert(err.message); }
     };
 
@@ -229,7 +253,7 @@
         try{
           const base = r.kind==='service'? '/services' : '/products';
           await api(`${base}/${r.id}`, { method:'PATCH', body: JSON.stringify(payload) });
-          loadCatalog(); // re-render cards
+          loadCatalog();
         } catch(err){ alert(err.message); }
       };
       save.addEventListener('click', (e)=>{ e.preventDefault(); submit(); });
