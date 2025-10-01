@@ -46,124 +46,144 @@
   </main>
 </div>
 
-<script type="module">
-  const money = (c) => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format((+c||0)/100);
-  async function safeJSON(path, init={}){
-    try{
-      const res = await fetch(path, { credentials:'include', ...init });
-      const text = await res.text();
-      try { return { ok: res.ok, status: res.status, data: JSON.parse(text), text, error:null }; }
-      catch { return { ok: res.ok, status: res.status, data: null, text, error:null }; }
-    }catch(e){
+<script>
+(function(){
+  function money(c){ try{ return new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format((+c||0)/100); }catch(e){ return '$' + ((+c||0)/100).toFixed(2); } }
+  function ce(tag){ return document.createElement(tag); }
+  function txt(s){ return document.createTextNode(s); }
+
+  function safeJSON(path, init){
+    init = init || {};
+    init.credentials = 'include';
+    return fetch(path, init).then(function(res){
+      return res.text().then(function(text){
+        try{ return { ok: res.ok, status: res.status, data: JSON.parse(text), text: text, error: null }; }
+        catch(e){ return { ok: res.ok, status: res.status, data: null, text: text, error: null }; }
+      });
+    }).catch(function(e){
       return { ok:false, status:0, data:null, text:'', error: (e && (e.message||String(e))) || 'Network error' };
-    }
+    });
   }
 
-  function card(r){
-    const el = document.createElement('section');
-    el.className = 'card';
-    el.innerHTML = \`
-      <div class="row" style="justify-content:space-between">
-        <div>
-          <div class="muted small">\${r.created_at ? new Date(r.created_at).toLocaleString() : ''}</div>
-          <h3 style="margin:.25rem 0">\${r.title || r.service_title || 'Service request'}</h3>
-          <div class="muted">\${r.service_title || ''}</div>
-        </div>
-        <div class="pill">\${r.status}</div>
-      </div>
-      \${r.details ? \`<div class="row help">\${r.details}</div>\` : ''}
-      <div class="row" style="justify-content:space-between;margin-top:10px">
-        <div class="muted">Quoted: \${r.price_cents!=null ? money(r.price_cents) : '—'}</div>
-        <div class="actions"></div>
-      </div>
-      <div class="downloads" style="margin-top:12px"></div>
-    \`;
+  function requestCard(r){
+    var el = ce('section'); el.className='card';
 
-    const actions = el.querySelector('.actions');
+    var row1 = ce('div'); row1.className='row'; row1.style.justifyContent='space-between';
+    var left = ce('div');
+    var meta = ce('div'); meta.className='muted small'; meta.appendChild(txt(r.created_at ? new Date(r.created_at).toLocaleString() : ''));
+    var h3 = ce('h3'); h3.style.margin='.25rem 0'; h3.appendChild(txt((r.title || r.service_title || 'Service request')));
+    var sub = ce('div'); sub.className='muted'; sub.appendChild(txt(r.service_title || ''));
+    left.appendChild(meta); left.appendChild(h3); left.appendChild(sub);
+    var pill = ce('div'); pill.className='pill'; pill.appendChild(txt(r.status));
+
+    row1.appendChild(left); row1.appendChild(pill);
+
+    var detailsRow = null;
+    if (r.details){
+      detailsRow = ce('div'); detailsRow.className='row help'; detailsRow.appendChild(txt(r.details));
+    }
+
+    var row2 = ce('div'); row2.className='row'; row2.style.justifyContent='space-between'; row2.style.marginTop='10px';
+    var quoted = ce('div'); quoted.className='muted'; quoted.appendChild(txt('Quoted: ' + (r.price_cents!=null ? money(r.price_cents) : '—')));
+    var actions = ce('div'); actions.className='actions';
+    row2.appendChild(quoted); row2.appendChild(actions);
+
+    var downloads = ce('div'); downloads.className='downloads'; downloads.style.marginTop='12px';
+
+    el.appendChild(row1);
+    if (detailsRow) el.appendChild(detailsRow);
+    el.appendChild(row2);
+    el.appendChild(downloads);
+
     if (r.status === 'quoted'){
-      const b = document.createElement('button');
-      b.className = 'button small';
-      b.textContent = 'Accept Quote';
-      b.onclick = async ()=>{
-        const res = await safeJSON(\`/api/services/\${r.id}\`, {
-          method:'PATCH', headers:{'content-type':'application/json'},
+      var b = ce('button'); b.className='button small'; b.appendChild(txt('Accept Quote'));
+      b.onclick = function(){
+        safeJSON('/api/services/' + r.id, {
+          method:'PATCH',
+          headers:{'content-type':'application/json'},
           body: JSON.stringify({ op:'accept', request_id: r.id })
+        }).then(function(res){
+          if (!res.ok){ alert(res.text || res.error || 'Failed to accept'); return; }
+          var data = res.data && (res.data.data || res.data) || {};
+          for (var k in data){ r[k] = data[k]; }
+          location.reload();
         });
-        if (!res.ok){ alert(res.text || res.error || 'Failed to accept'); return; }
-        const data = res.data && (res.data.data ?? res.data);
-        Object.assign(r, data);
-        location.reload();
       };
       actions.appendChild(b);
     }
 
-    const wrap = el.querySelector('.downloads');
     if (r.status === 'delivered'){
-      const files = Array.isArray(r.deliverables) ? r.deliverables : [];
-      wrap.innerHTML = '<h4>Deliverables</h4>';
-      if (files.length === 0){
-        const p = document.createElement('p'); p.className='muted'; p.textContent='Admin marked delivered but no files listed.'; wrap.appendChild(p);
+      var files = (r.deliverables && r.deliverables.length) ? r.deliverables : [];
+      downloads.innerHTML = '<h4>Deliverables</h4>';
+      if (!files.length){
+        var p = ce('p'); p.className='muted'; p.appendChild(txt('Admin marked delivered but no files listed.'));
+        downloads.appendChild(p);
       } else {
-        const list = document.createElement('ul'); list.className='list';
-        files.forEach(d => {
-          const li = document.createElement('li'); li.className='row';
-          const a = document.createElement('a');
-          a.textContent = d.label || 'File'; a.href = d.file_key; a.target='_blank'; a.rel='noopener';
-          li.appendChild(a); list.appendChild(li);
-        });
-        wrap.appendChild(list);
+        var ul = ce('ul'); ul.className='list';
+        for (var i=0;i<files.length;i++){
+          var d = files[i];
+          var li = ce('li'); li.className='row';
+          var a = ce('a'); a.target='_blank'; a.rel='noopener'; a.href = d.file_key; a.appendChild(txt(d.label || 'File'));
+          li.appendChild(a); ul.appendChild(li);
+        }
+        downloads.appendChild(ul);
       }
     } else if (r.status === 'paid' || r.status === 'accepted' || r.status === 'quoted') {
-      const p = document.createElement('p'); p.className='muted';
-      p.textContent = (r.status==='paid') ? 'Paid. Waiting for delivery.' :
-                      (r.status==='accepted') ? 'Accepted. Awaiting delivery.' :
-                      'Awaiting your decision.';
-      wrap.appendChild(p);
+      var p2 = ce('p'); p2.className='muted';
+      p2.appendChild(txt(r.status==='paid' ? 'Paid. Waiting for delivery.' : (r.status==='accepted' ? 'Accepted. Awaiting delivery.' : 'Awaiting your decision.')));
+      downloads.appendChild(p2);
     }
 
     return el;
   }
 
-  (async function main(){
-    const who = document.getElementById('who');
-    const raw = document.getElementById('raw');
-    const err = document.getElementById('err');
-    const list = document.getElementById('list');
+  function main(){
+    var who = document.getElementById('who');
+    var raw = document.getElementById('raw');
+    var err = document.getElementById('err');
+    var list = document.getElementById('list');
 
-    try{
-      const me = await safeJSON('/api/auth/me');
+    safeJSON('/api/auth/me').then(function(me){
       who.textContent = me.text || '';
-      const user = me.data && (me.data.data ?? me.data);
+      var user = me.data && (me.data.data || me.data);
       if (!user || !user.id){
         document.querySelector('main').innerHTML = '<h2>Please log in to view your requests.</h2>';
         return;
       }
 
-      const mine = await safeJSON('/api/services?mine=1');
-      raw.textContent = mine.text || (mine.error || '');
-      let rows = mine.data && (mine.data.data ?? mine.data);
-      if (!Array.isArray(rows)) rows = [];
-
-      const detailed = [];
-      for (const r of rows){
-        let merged = { ...r };
-        const det = await safeJSON(\`/api/services/\${r.id}\`);
-        if (det.ok && det.data) {
-          const data = det.data.data ?? det.data;
-          merged = { ...merged, ...(data || {}) };
+      safeJSON('/api/services?mine=1').then(function(mine){
+        raw.textContent = mine.text || (mine.error || '');
+        var rows = mine.data && (mine.data.data || mine.data);
+        if (!rows || !rows.length){
+          list.innerHTML = '<div class="card"><p class="muted">No service requests yet.</p></div>';
+          return;
         }
-        detailed.push(merged);
-      }
 
-      if (detailed.length === 0){
-        list.innerHTML = '<div class="card"><p class="muted">No service requests yet.</p></div>';
-      } else {
-        list.innerHTML = '';
-        for (const r of detailed) list.appendChild(card(r));
-      }
-    }catch(e){
-      err.textContent = e.message || String(e);
-    }
-  })();
+        // Hydrate each with detail, sequential to keep it simple
+        var idx = 0, detailed = [];
+        function next(){
+          if (idx >= rows.length){
+            list.innerHTML = '';
+            for (var j=0;j<detailed.length;j++) list.appendChild(requestCard(detailed[j]));
+            return;
+          }
+          var r = rows[idx++];
+          safeJSON('/api/services/' + r.id).then(function(det){
+            var data = det && det.data && (det.data.data || det.data);
+            if (data){ for (var k in data){ r[k] = data[k]; } }
+            detailed.push(r);
+            next();
+          }).catch(function(){ detailed.push(r); next(); });
+        }
+        next();
+      });
+    }).catch(function(e){
+      err.textContent = e && (e.message||String(e)) || 'Failed to load';
+    });
+  }
+
+  if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', main); }
+  else { main(); }
+})();
 </script>
 </body></html>
