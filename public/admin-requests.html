@@ -1,45 +1,118 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Service Requests — A.Production (of sorts)</title>
+<link rel="stylesheet" href="/styles/base.css"><link rel="stylesheet" href="/styles/components.css">
+<style>
+  .container { min-height: 100vh; }
+  table { width:100%; border-collapse: collapse; }
+  th,td { padding:8px 10px; border-bottom: 1px solid rgba(255,255,255,.08); text-align:left; }
+  .muted { opacity:.8 }
+  .grid { display:grid; gap:16px; grid-template-columns: 1fr; }
+  @media (min-width: 900px){ .grid{ grid-template-columns: 1fr 1fr; } }
+  .row-actions { display:flex; gap:8px; flex-wrap: wrap; }
+</style>
+</head><body>
+<div class="container">
+  <nav class="nav" id="nav"></nav>
+  <main class="content">
+    <h1>Service Requests</h1>
+    <p class="muted">Quote, mark paid, and deliver files.</p>
+    <div id="error" class="muted" style="display:none"></div>
+    <table id="tbl">
+      <thead>
+        <tr><th>When</th><th>Service</th><th>Customer</th><th>Status</th><th>Quote</th><th>Actions</th></tr>
+      </thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </main>
+</div>
+
 <script type="module">
   import { currentUser, Service, money } from '/scripts/api.js';
   import { wireNav } from '/scripts/nav.js';
-  const me = await currentUser();
-  await wireNav('nav-control');
-  if (!me || !['admin','editor'].includes(me.role)) {
-    document.body.innerHTML = '<div class="container"><main class="content"><h2>Forbidden</h2></main></div>';
-    throw new Error('forbidden');
-  }
-  const body = document.getElementById('rows');
-  async function load(){
-    const rows = await Service.adminRequests();
-    body.innerHTML='';
-    for (const r of rows){
-      const tr = document.createElement('tr');
-      tr.innerHTML = `
-        <td>${new Date(r.created_at).toLocaleString()}</td>
-        <td>${r.service_title}</td>
-        <td>${r.customer_email||''}</td>
-        <td>${r.status}</td>
-        <td>${r.price_cents!=null?money(r.price_cents):'-'}</td>
-        <td class="act"></td>`;
-      const act = tr.querySelector('.act');
-      if (r.status==='submitted' || r.status==='quoted'){
-        const f = document.createElement('form');
-        f.innerHTML = `<input name="price" type="number" min="0" step="1" placeholder="Price (cents)" style="width:120px"> <button class="button small">Quote</button>`;
-        f.onsubmit = async (e)=>{ e.preventDefault(); const cents=parseInt(f.price.value||'0',10); await Service.quote(r.id, cents); await load(); };
-        act.appendChild(f);
-      }
-      if (r.status==='accepted' || r.status==='quoted'){
-        const b = document.createElement('button'); b.className='button small'; b.textContent='Mark Paid';
-        b.onclick = async ()=>{ await Service.markPaid(r.id); await load(); };
-        act.appendChild(b);
-      }
-      if (r.status==='paid' || r.status==='delivered'){
-        const f2 = document.createElement('form');
-        f2.innerHTML = `<input name="label" placeholder="Label" required style="width:120px"> <input name="url" placeholder="https://file-url" required style="width:240px"> <button class="button small">Deliver</button>`;
-        f2.onsubmit = async (e)=>{ e.preventDefault(); await Service.deliver(r.id, { label:f2.label.value.trim(), file_key:f2.url.value.trim() }); await load(); };
-        act.appendChild(f2);
-      }
-      body.appendChild(tr);
+  try{
+    const me = await currentUser();
+    await wireNav('nav-control');
+    if (!me || !['admin','editor'].includes(me.role)) {
+      document.querySelector('main').innerHTML = '<h2>Forbidden</h2>';
+      throw new Error('forbidden');
     }
+
+    const body = document.getElementById('rows');
+    const err = document.getElementById('error');
+
+    async function load(){
+      try{
+        const rows = await Service.adminRequests();
+        body.innerHTML='';
+        if (!rows || rows.length===0){
+          const tr = document.createElement('tr');
+          tr.innerHTML = '<td colspan="6" class="muted">No requests yet.</td>';
+          body.appendChild(tr);
+          return;
+        }
+        for (const r of rows){
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${new Date(r.created_at).toLocaleString()}</td>
+            <td>${r.service_title}</td>
+            <td>${r.customer_email||''}</td>
+            <td>${r.status}</td>
+            <td>${r.price_cents!=null?money(r.price_cents):'-'}</td>
+            <td class="row-actions"></td>`;
+          const actions = tr.querySelector('.row-actions');
+
+          if (r.status === 'submitted' || r.status === 'quoted'){
+            const quote = document.createElement('form');
+            quote.innerHTML = \`
+              <input name="price" type="number" min="0" step="1" placeholder="Price (cents)" style="width:140px">
+              <button class="button small" type="submit">\${r.status==='quoted'?'Update quote':'Quote'}</button>\`;
+            quote.addEventListener('submit', async (e)=>{
+              e.preventDefault();
+              const price_cents = parseInt(quote.price.value || '0', 10);
+              await Service.quote(r.id, price_cents);
+              await load();
+            });
+            actions.appendChild(quote);
+          }
+
+          if (r.status === 'accepted' || r.status === 'quoted'){
+            const paid = document.createElement('button');
+            paid.className = 'button small';
+            paid.textContent = 'Mark Paid';
+            paid.onclick = async ()=>{ await Service.markPaid(r.id); await load(); };
+            actions.appendChild(paid);
+          }
+
+          if (r.status === 'paid' || r.status === 'delivered'){
+            const deliv = document.createElement('form');
+            deliv.innerHTML = \`
+              <input name="label" placeholder="Label" required style="width:140px">
+              <input name="url" placeholder="https://file-url" required style="width:220px">
+              <button class="button small" type="submit">Deliver</button>\`;
+            deliv.addEventListener('submit', async (e)=>{
+              e.preventDefault();
+              const label = deliv.label.value.trim();
+              const file_key = deliv.url.value.trim();
+              await Service.deliver(r.id, { label, file_key });
+              await load();
+            });
+            actions.appendChild(deliv);
+          }
+
+          body.appendChild(tr);
+        }
+      }catch(e){
+        console.error(e);
+        err.style.display='block';
+        err.textContent = e.message || 'Failed to load requests';
+      }
+    }
+
+    await load();
+  }catch(e){
+    console.error(e);
   }
-  await load();
 </script>
+<script type="module" src="/scripts/nav.js"></script>
+</body></html>
