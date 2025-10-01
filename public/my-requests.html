@@ -1,0 +1,150 @@
+<!doctype html><html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>My Service Requests — A.Production (of sorts)</title>
+<link rel="stylesheet" href="/styles/base.css"><link rel="stylesheet" href="/styles/components.css">
+<style>
+  .container { min-height: 100vh; }
+  .card { margin-bottom: 16px; }
+  .muted { opacity:.85 }
+  .pill { padding:.2rem .5rem; border-radius:999px; background: rgba(255,255,255,.08); font-size:.85rem }
+  .row { display:flex; gap:12px; align-items:center; flex-wrap: wrap; }
+  .grid { display:grid; gap:16px; grid-template-columns: 1fr; }
+  @media (min-width: 900px){ .grid{ grid-template-columns: 1fr 1fr; } }
+  .actions { display:flex; gap:8px; flex-wrap: wrap; }
+  .downloads a { color: #cdb4ff; }
+  .small { font-size:.9rem; padding:.45rem .7rem; }
+  .help { font-size:.9rem; margin-top:6px }
+</style>
+</head><body>
+<div class="container">
+  <nav class="nav" id="nav">
+    <div class="brand"><span class="badge">A.Production</span><span class="muted" style="margin-left:8px">(of sorts)</span></div>
+    <div class="nav-links">
+      <a href="/index.html">Home</a>
+      <a href="/account.html">Account</a>
+    </div>
+  </nav>
+
+  <main class="content">
+    <h1>My Service Requests</h1>
+    <p class="muted">Track quotes, accept prices, and download deliverables.</p>
+
+    <div id="err" class="muted" style="display:none"></div>
+    <div id="list" class="grid"></div>
+  </main>
+</div>
+
+<script>
+  const money = (c) => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format((+c||0)/100);
+  async function safeJSON(path, init={}){
+    const res = await fetch(path, { credentials:'include', ...init });
+    const text = await res.text();
+    try { return { ok: res.ok, status: res.status, data: JSON.parse(text), text }; }
+    catch { return { ok: res.ok, status: res.status, data: null, text }; }
+  }
+
+  function requestCard(r){
+    const card = document.createElement('section');
+    card.className = 'card';
+    card.innerHTML = \`
+      <div class="row" style="justify-content:space-between">
+        <div>
+          <div class="muted small">\${new Date(r.created_at).toLocaleString()}</div>
+          <h3 style="margin:.25rem 0">\${r.title || r.service_title || 'Service request'}</h3>
+          <div class="muted">\${r.service_title || ''}</div>
+        </div>
+        <div class="pill">\${r.status}</div>
+      </div>
+      <div class="row help">\${r.details ? r.details : ''}</div>
+      <div class="row" style="justify-content:space-between;margin-top:10px">
+        <div class="muted">Quoted: \${r.price_cents!=null ? money(r.price_cents) : '—'}</div>
+        <div class="actions"></div>
+      </div>
+      <div class="downloads" style="margin-top:12px"></div>
+    \`;
+
+    const actions = card.querySelector('.actions');
+    // If quoted → show Accept button
+    if (r.status === 'quoted'){
+      const b = document.createElement('button');
+      b.className = 'button small';
+      b.textContent = 'Accept Quote';
+      b.onclick = async ()=>{
+        const res = await safeJSON(\`/api/services/\${r.id}\`, {
+          method:'PATCH', headers:{'content-type':'application/json'},
+          body: JSON.stringify({ op:'accept', request_id: r.id })
+        });
+        if (!res.ok){ alert(res.text); return; }
+        const data = res.data && (res.data.data ?? res.data);
+        Object.assign(r, data);
+        // simple reload to reflect status change
+        location.reload();
+      };
+      actions.appendChild(b);
+    }
+
+    // If delivered → show download links
+    if (r.status === 'delivered'){
+      const wrap = card.querySelector('.downloads');
+      wrap.innerHTML = '<h4>Deliverables</h4>';
+      const list = document.createElement('ul');
+      list.className = 'list';
+      (r.deliverables || []).forEach(d => {
+        const li = document.createElement('li');
+        li.className = 'row';
+        const a = document.createElement('a');
+        a.textContent = d.label || 'File';
+        a.href = d.file_key; // direct URL provided by admin
+        a.target = '_blank';
+        a.rel = 'noopener';
+        li.appendChild(a);
+        list.appendChild(li);
+      });
+      if ((r.deliverables || []).length === 0){
+        const p = document.createElement('p'); p.className='muted'; p.textContent='Admin marked delivered but no files listed.';
+        wrap.appendChild(p);
+      } else {
+        wrap.appendChild(list);
+      }
+    }
+
+    return card;
+  }
+
+  (async function main(){
+    const err = document.getElementById('err');
+    const list = document.getElementById('list');
+
+    // Verify logged-in user
+    const me = await safeJSON('/api/auth/me');
+    const user = me.data && (me.data.data ?? me.data);
+    if (!user || !user.id){
+      document.querySelector('main').innerHTML = '<h2>Please log in to view your requests.</h2>';
+      return;
+    }
+
+    // Load my requests (summary)
+    const mine = await safeJSON('/api/services?mine=1');
+    let rows = mine.data && (mine.data.data ?? mine.data);
+    if (!Array.isArray(rows)) rows = [];
+
+    // For each request, hydrate with detail (messages/deliverables)
+    const detailed = [];
+    for (const r of rows){
+      const det = await safeJSON(\`/api/services/\${r.id}\`);
+      const data = det.data && (det.data.data ?? det.data);
+      detailed.push({ ...r, ...(data || {}) });
+    }
+
+    if (detailed.length === 0){
+      list.innerHTML = '<div class="card"><p class="muted">No service requests yet.</p></div>';
+      return;
+    }
+
+    list.innerHTML = '';
+    for (const r of detailed){
+      list.appendChild(requestCard(r));
+    }
+  })();
+</script>
+</body></html>
