@@ -15,8 +15,9 @@ export const Auth = {
 };
 export function money(cents){ return new Intl.NumberFormat('en-US',{ style:'currency', currency:'USD' }).format((cents||0)/100); }
 export async function currentUser(){
-  try { return await Auth.me(); } catch { return null; }
+  try { return await api('/auth/me'); } catch { return null; }
 }
+
 // Vercel Web Analytics (window.va) convenience wrapper (no-op if not present)
 export function track(name, data={}){
   try { if (typeof window !== 'undefined' && window.va && typeof window.va.track==='function') window.va.track(name, data); } catch {}
@@ -40,7 +41,3 @@ export const Service = {
   message: (request_id, bodyText) =>
     api(`/services/${request_id}`, { method:'POST', body: JSON.stringify({ op:'message', request_id, body: bodyText }) }),
 };
-// --- hotfix: currentUser helper ---
-export async function currentUser(){
-  try { return await api('/auth/me'); } catch { return null; }
-}
