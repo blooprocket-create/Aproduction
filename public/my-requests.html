@@ -19,13 +19,7 @@
 </style>
 </head><body>
 <div class="container">
-  <nav class="nav" id="nav">
-    <div class="brand"><span class="badge">A.Production</span><span class="muted" style="margin-left:8px">(of sorts)</span></div>
-    <div class="nav-links">
-      <a href="/index.html">Home</a>
-      <a href="/account.html">Account</a>
-    </div>
-  </nav>
+  <nav class="nav" id="nav"></nav>
 
   <main class="content">
     <h1>My Service Requests</h1>
@@ -33,35 +27,31 @@
 
     <div class="diag">
       <h4>Diagnostics</h4>
-      <div>Current user (/api/auth/me):</div>
+      <div>Current user (/api/auth/me via helper):</div>
       <pre id="who">…</pre>
-      <div class="err" id="whoerr"></div>
-      <div>Mine list payload (/api/services?mine=1):</div>
+      <div>Mine list payload (/api/services?mine=1 via helper):</div>
       <pre id="raw">…</pre>
-      <div class="err" id="rawerr"></div>
+      <div class="err" id="err"></div>
     </div>
 
     <div id="list" class="grid"></div>
   </main>
 </div>
 
-<script>
-  const money = (c) => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format((+c||0)/100);
-  async function safeJSON(path, init={}){
-    try{
-      const res = await fetch(path, { credentials:'include', ...init });
-      const text = await res.text();
-      try { return { ok: res.ok, status: res.status, data: JSON.parse(text), text, error:null }; }
-      catch { return { ok: res.ok, status: res.status, data: null, text, error:null }; }
-    }catch(e){
-      return { ok:false, status:0, data:null, text:'', error: (e && (e.message||String(e))) || 'Network error' };
-    }
-  }
+<script type="module">
+  import { api, money } from '/scripts/api.js';
+  import { wireNav } from '/scripts/nav.js';
+  await wireNav('nav-account');
 
-  function requestCard(r){
-    const card = document.createElement('section');
-    card.className = 'card';
-    card.innerHTML = \`
+  const who = document.getElementById('who');
+  const raw = document.getElementById('raw');
+  const err = document.getElementById('err');
+  const list = document.getElementById('list');
+
+  function card(r){
+    const el = document.createElement('section');
+    el.className = 'card';
+    el.innerHTML = \`
       <div class="row" style="justify-content:space-between">
         <div>
           <div class="muted small">\${r.created_at ? new Date(r.created_at).toLocaleString() : ''}</div>
@@ -78,36 +68,33 @@
       <div class="downloads" style="margin-top:12px"></div>
     \`;
 
-    const actions = card.querySelector('.actions');
+    const actions = el.querySelector('.actions');
     if (r.status === 'quoted'){
       const b = document.createElement('button');
       b.className = 'button small';
       b.textContent = 'Accept Quote';
       b.onclick = async ()=>{
-        const res = await safeJSON(\`/api/services/\${r.id}\`, {
-          method:'PATCH', headers:{'content-type':'application/json'},
-          body: JSON.stringify({ op:'accept', request_id: r.id })
-        });
-        if (!res.ok){ alert(res.error || res.text || 'Failed to accept'); return; }
-        const data = res.data && (res.data.data ?? res.data);
-        Object.assign(r, data);
-        location.reload();
+        try {
+          const res = await api(\`/services/\${r.id}\`, { method:'PATCH', body: JSON.stringify({ op:'accept', request_id: r.id }) });
+          Object.assign(r, res);
+          location.reload();
+        } catch(e){ alert(e.message); }
       };
       actions.appendChild(b);
     }
 
-    const wrap = card.querySelector('.downloads');
+    const wrap = el.querySelector('.downloads');
     if (r.status === 'delivered'){
-      const delivs = Array.isArray(r.deliverables) ? r.deliverables : [];
+      const files = Array.isArray(r.deliverables) ? r.deliverables : [];
       wrap.innerHTML = '<h4>Deliverables</h4>';
-      if (delivs.length === 0){
+      if (files.length === 0){
         const p = document.createElement('p'); p.className='muted'; p.textContent='Admin marked delivered but no files listed.'; wrap.appendChild(p);
       } else {
         const list = document.createElement('ul'); list.className='list';
-        delivs.forEach(d => {
+        files.forEach(d => {
           const li = document.createElement('li'); li.className='row';
           const a = document.createElement('a');
-          a.textContent = d.label || 'File'; a.href = d.file_key; a.target='_blank'; a.rel = 'noopener';
+          a.textContent = d.label || 'File'; a.href = d.file_key; a.target='_blank'; a.rel='noopener';
           li.appendChild(a); list.appendChild(li);
         });
         wrap.appendChild(list);
@@ -120,52 +107,39 @@
       wrap.appendChild(p);
     }
 
-    return card;
+    return el;
   }
 
-  (async function main(){
-    const who = document.getElementById('who');
-    const whoerr = document.getElementById('whoerr');
-    const raw = document.getElementById('raw');
-    const rawerr = document.getElementById('rawerr');
-    const list = document.getElementById('list');
+  try {
+    const me = await api('/auth/me');
+    who.textContent = JSON.stringify(me, null, 2);
 
-    const me = await safeJSON('/api/auth/me');
-    who.textContent = me.text || '';
-    if (me.error) { whoerr.textContent = me.error; }
-    const user = me.data && (me.data.data ?? me.data);
-    if (!user || !user.id){
-      document.querySelector('main').innerHTML = '<h2>Please log in to view your requests.</h2>';
-      return;
-    }
+    let rows = await api('/services?mine=1');
+    raw.textContent = JSON.stringify(rows, null, 2);
 
-    const mine = await safeJSON('/api/services?mine=1');
-    raw.textContent = mine.text || '';
-    if (mine.error) { rawerr.textContent = mine.error; }
+    // If the API returns shape {ok:true,data:[...]}, our helper returns .data already.
+    if (!Array.isArray(rows)) rows = (rows && rows.data) || [];
 
-    let rows = mine.data && (mine.data.data ?? mine.data);
-    if (!Array.isArray(rows)) rows = [];
-
+    // Hydrate each with details
     const detailed = [];
     for (const r of rows){
-      let merged = { ...r };
-      const det = await safeJSON(\`/api/services/\${r.id}\`);
-      if (det.ok && det.data) {
-        const data = det.data.data ?? det.data;
-        merged = { ...merged, ...(data || {}) };
+      try {
+        const full = await api(\`/services/\${r.id}\`);
+        detailed.push({ ...r, ...(full||{}) });
+      } catch {
+        detailed.push(r);
       }
-      detailed.push(merged);
     }
 
-    if (detailed.length === 0){
+    if (!detailed.length){
       list.innerHTML = '<div class="card"><p class="muted">No service requests yet.</p></div>';
-      return;
+    } else {
+      list.innerHTML = '';
+      for (const r of detailed) list.appendChild(card(r));
     }
-
-    list.innerHTML = '';
-    for (const r of detailed){
-      list.appendChild(requestCard(r));
-    }
-  })();
+  } catch (e) {
+    err.textContent = e.message || 'Failed to load';
+  }
 </script>
+<script type="module" src="/scripts/nav.js"></script>
 </body></html>
