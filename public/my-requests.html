@@ -15,11 +15,19 @@
   .small { font-size:.9rem; padding:.45rem .7rem; }
   pre { background: rgba(255,255,255,.05); padding: 10px; border-radius: 12px; overflow:auto; }
   .diag { margin: 12px 0; }
-  .err { color: #ff8a8a; }
+  .err { color: #ff8a8a; white-space: pre-wrap; }
 </style>
 </head><body>
 <div class="container">
-  <nav class="nav" id="nav"></nav>
+  <nav class="nav" id="nav">
+    <div class="brand">
+      <span class="badge">A.Production</span><span class="muted" style="margin-left:8px">(of sorts)</span>
+    </div>
+    <div class="nav-links">
+      <a href="/index.html">Home</a>
+      <a href="/account.html">Account</a>
+    </div>
+  </nav>
 
   <main class="content">
     <h1>My Service Requests</h1>
@@ -27,9 +35,9 @@
 
     <div class="diag">
       <h4>Diagnostics</h4>
-      <div>Current user (/api/auth/me via helper):</div>
+      <div>Current user (/api/auth/me):</div>
       <pre id="who">…</pre>
-      <div>Mine list payload (/api/services?mine=1 via helper):</div>
+      <div>Mine list payload (/api/services?mine=1):</div>
       <pre id="raw">…</pre>
       <div class="err" id="err"></div>
     </div>
@@ -39,14 +47,17 @@
 </div>
 
 <script type="module">
-  import { api, money } from '/scripts/api.js';
-  import { wireNav } from '/scripts/nav.js';
-  await wireNav('nav-account');
-
-  const who = document.getElementById('who');
-  const raw = document.getElementById('raw');
-  const err = document.getElementById('err');
-  const list = document.getElementById('list');
+  const money = (c) => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format((+c||0)/100);
+  async function safeJSON(path, init={}){
+    try{
+      const res = await fetch(path, { credentials:'include', ...init });
+      const text = await res.text();
+      try { return { ok: res.ok, status: res.status, data: JSON.parse(text), text, error:null }; }
+      catch { return { ok: res.ok, status: res.status, data: null, text, error:null }; }
+    }catch(e){
+      return { ok:false, status:0, data:null, text:'', error: (e && (e.message||String(e))) || 'Network error' };
+    }
+  }
 
   function card(r){
     const el = document.createElement('section');
@@ -74,11 +85,14 @@
       b.className = 'button small';
       b.textContent = 'Accept Quote';
       b.onclick = async ()=>{
-        try {
-          const res = await api(\`/services/\${r.id}\`, { method:'PATCH', body: JSON.stringify({ op:'accept', request_id: r.id }) });
-          Object.assign(r, res);
-          location.reload();
-        } catch(e){ alert(e.message); }
+        const res = await safeJSON(\`/api/services/\${r.id}\`, {
+          method:'PATCH', headers:{'content-type':'application/json'},
+          body: JSON.stringify({ op:'accept', request_id: r.id })
+        });
+        if (!res.ok){ alert(res.text || res.error || 'Failed to accept'); return; }
+        const data = res.data && (res.data.data ?? res.data);
+        Object.assign(r, data);
+        location.reload();
       };
       actions.appendChild(b);
     }
@@ -110,36 +124,46 @@
     return el;
   }
 
-  try {
-    const me = await api('/auth/me');
-    who.textContent = JSON.stringify(me, null, 2);
+  (async function main(){
+    const who = document.getElementById('who');
+    const raw = document.getElementById('raw');
+    const err = document.getElementById('err');
+    const list = document.getElementById('list');
 
-    let rows = await api('/services?mine=1');
-    raw.textContent = JSON.stringify(rows, null, 2);
-
-    // If the API returns shape {ok:true,data:[...]}, our helper returns .data already.
-    if (!Array.isArray(rows)) rows = (rows && rows.data) || [];
-
-    // Hydrate each with details
-    const detailed = [];
-    for (const r of rows){
-      try {
-        const full = await api(\`/services/\${r.id}\`);
-        detailed.push({ ...r, ...(full||{}) });
-      } catch {
-        detailed.push(r);
+    try{
+      const me = await safeJSON('/api/auth/me');
+      who.textContent = me.text || '';
+      const user = me.data && (me.data.data ?? me.data);
+      if (!user || !user.id){
+        document.querySelector('main').innerHTML = '<h2>Please log in to view your requests.</h2>';
+        return;
       }
-    }
 
-    if (!detailed.length){
-      list.innerHTML = '<div class="card"><p class="muted">No service requests yet.</p></div>';
-    } else {
-      list.innerHTML = '';
-      for (const r of detailed) list.appendChild(card(r));
+      const mine = await safeJSON('/api/services?mine=1');
+      raw.textContent = mine.text || (mine.error || '');
+      let rows = mine.data && (mine.data.data ?? mine.data);
+      if (!Array.isArray(rows)) rows = [];
+
+      const detailed = [];
+      for (const r of rows){
+        let merged = { ...r };
+        const det = await safeJSON(\`/api/services/\${r.id}\`);
+        if (det.ok && det.data) {
+          const data = det.data.data ?? det.data;
+          merged = { ...merged, ...(data || {}) };
+        }
+        detailed.push(merged);
+      }
+
+      if (detailed.length === 0){
+        list.innerHTML = '<div class="card"><p class="muted">No service requests yet.</p></div>';
+      } else {
+        list.innerHTML = '';
+        for (const r of detailed) list.appendChild(card(r));
+      }
+    }catch(e){
+      err.textContent = e.message || String(e);
     }
-  } catch (e) {
-    err.textContent = e.message || 'Failed to load';
-  }
+  })();
 </script>
-<script type="module" src="/scripts/nav.js"></script>
 </body></html>
