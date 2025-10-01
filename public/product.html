@@ -53,6 +53,18 @@
         <ul id="downloads-list" class="list"></ul>
       </section>
     </div>
+
+
+      <!-- Service quote form (visible only for kind='service') -->
+      <section id="service-form" class="card hidden" style="grid-column:1 / -1">
+        <h3>Request a Quote</h3>
+        <form id="quote">
+          <div class="row"><input name="title" placeholder="Project title (e.g., Landing page redesign)" required></div>
+          <div class="row"><textarea name="details" placeholder="Tell us what you need…" rows="5"></textarea></div>
+          <button class="button" type="submit">Submit request</button>
+        </form>
+        <p id="quote-msg" class="muted"></p>
+      </section>
   </div>
 
   <!-- Sticky Buy bar (mobile) -->
@@ -204,5 +216,33 @@
     }
     bb.classList.remove('hidden');
   }
+
+  // If service → show quote form instead of Buy
+  try {
+    if (p && p.kind === 'service') {
+      const formWrap = document.getElementById('service-form');
+      const form = document.getElementById('quote');
+      const buyBtn = document.getElementById('buy');
+      const buybar = document.getElementById('buybar');
+      buyBtn && buyBtn.classList.add('hidden');
+      buybar && buybar.classList.add('hidden');
+      if (formWrap && form) {
+        formWrap.classList.remove('hidden');
+        form.addEventListener('submit', async (e)=>{
+          e.preventDefault();
+          const fd = new FormData(form);
+          const payload = { service_id: p.id, title: String(fd.get('title')||'').trim(), details: String(fd.get('details')||'').trim() };
+          if (!payload.title) return alert('Please add a title');
+          try{
+            const r = await import('/scripts/api.js');
+            await r.Service.request(payload);
+            document.getElementById('quote-msg').textContent = 'Request submitted. We\'ll email you once it\'s quoted.';
+            form.reset();
+          }catch(err){ alert(err.message || 'Failed to submit request'); }
+        });
+      }
+    }
+  } catch {}
+
 </script>
 </body></html>

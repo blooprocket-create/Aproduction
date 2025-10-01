@@ -21,3 +21,22 @@ export async function currentUser(){
 export function track(name, data={}){
   try { if (typeof window !== 'undefined' && window.va && typeof window.va.track==='function') window.va.track(name, data); } catch {}
 }
+
+// --- Service helpers (appended by patch 19) ---
+export const Service = {
+  list: (params='') => api('/services' + params),
+  request: ({ service_id, title, details }) =>
+    api('/services', { method:'POST', body: JSON.stringify({ op:'request', service_id, title, details }) }),
+  myRequests: () => api('/services?mine=1'),
+  adminRequests: () => api('/services?admin=1'),
+  quote: (request_id, price_cents) =>
+    api(`/services/${request_id}`, { method:'PATCH', body: JSON.stringify({ op:'quote', request_id, price_cents }) }),
+  accept: (request_id) =>
+    api(`/services/${request_id}`, { method:'PATCH', body: JSON.stringify({ op:'accept', request_id }) }),
+  markPaid: (request_id) =>
+    api(`/services/${request_id}`, { method:'PATCH', body: JSON.stringify({ op:'paid', request_id }) }),
+  deliver: (request_id, { label, file_key, mime_type, bytes }) =>
+    api(`/services/${request_id}`, { method:'PATCH', body: JSON.stringify({ op:'deliver', request_id, label, file_key, mime_type, bytes }) }),
+  message: (request_id, bodyText) =>
+    api(`/services/${request_id}`, { method:'POST', body: JSON.stringify({ op:'message', request_id, body: bodyText }) }),
+};
