@@ -13,7 +13,8 @@
   .actions { display:flex; gap:8px; flex-wrap: wrap; }
   .downloads a { color: #cdb4ff; }
   .small { font-size:.9rem; padding:.45rem .7rem; }
-  .help { font-size:.9rem; margin-top:6px }
+  pre { background: rgba(255,255,255,.05); padding: 10px; border-radius: 12px; overflow:auto; }
+  .diag { margin: 12px 0; }
 </style>
 </head><body>
 <div class="container">
@@ -29,7 +30,15 @@
     <h1>My Service Requests</h1>
     <p class="muted">Track quotes, accept prices, and download deliverables.</p>
 
-    <div id="err" class="muted" style="display:none"></div>
+    <div class="diag">
+      <h4>Diagnostics</h4>
+      <div>Current user (/api/auth/me):</div>
+      <pre id="who">…</pre>
+      <div>Mine list payload (/api/services?mine=1):</div>
+      <pre id="raw">…</pre>
+      <div id="err" class="muted"></div>
+    </div>
+
     <div id="list" class="grid"></div>
   </main>
 </div>
@@ -49,13 +58,13 @@
     card.innerHTML = \`
       <div class="row" style="justify-content:space-between">
         <div>
-          <div class="muted small">\${new Date(r.created_at).toLocaleString()}</div>
+          <div class="muted small">\${r.created_at ? new Date(r.created_at).toLocaleString() : ''}</div>
           <h3 style="margin:.25rem 0">\${r.title || r.service_title || 'Service request'}</h3>
           <div class="muted">\${r.service_title || ''}</div>
         </div>
         <div class="pill">\${r.status}</div>
       </div>
-      <div class="row help">\${r.details ? r.details : ''}</div>
+      \${r.details ? \`<div class="row help">\${r.details}</div>\` : ''}
       <div class="row" style="justify-content:space-between;margin-top:10px">
         <div class="muted">Quoted: \${r.price_cents!=null ? money(r.price_cents) : '—'}</div>
         <div class="actions"></div>
@@ -64,7 +73,6 @@
     \`;
 
     const actions = card.querySelector('.actions');
-    // If quoted → show Accept button
     if (r.status === 'quoted'){
       const b = document.createElement('button');
       b.className = 'button small';
@@ -77,63 +85,69 @@
         if (!res.ok){ alert(res.text); return; }
         const data = res.data && (res.data.data ?? res.data);
         Object.assign(r, data);
-        // simple reload to reflect status change
         location.reload();
       };
       actions.appendChild(b);
     }
 
-    // If delivered → show download links
+    const wrap = card.querySelector('.downloads');
     if (r.status === 'delivered'){
-      const wrap = card.querySelector('.downloads');
+      // Prefer deliverables; otherwise surface assets-like info if present in summary
+      const delivs = Array.isArray(r.deliverables) ? r.deliverables : [];
       wrap.innerHTML = '<h4>Deliverables</h4>';
-      const list = document.createElement('ul');
-      list.className = 'list';
-      (r.deliverables || []).forEach(d => {
-        const li = document.createElement('li');
-        li.className = 'row';
-        const a = document.createElement('a');
-        a.textContent = d.label || 'File';
-        a.href = d.file_key; // direct URL provided by admin
-        a.target = '_blank';
-        a.rel = 'noopener';
-        li.appendChild(a);
-        list.appendChild(li);
-      });
-      if ((r.deliverables || []).length === 0){
-        const p = document.createElement('p'); p.className='muted'; p.textContent='Admin marked delivered but no files listed.';
-        wrap.appendChild(p);
+      if (delivs.length === 0){
+        const p = document.createElement('p'); p.className='muted'; p.textContent='Admin marked delivered but no files listed.'; wrap.appendChild(p);
       } else {
+        const list = document.createElement('ul'); list.className='list';
+        delivs.forEach(d => {
+          const li = document.createElement('li'); li.className='row';
+          const a = document.createElement('a');
+          a.textContent = d.label || 'File'; a.href = d.file_key; a.target='_blank'; a.rel='noopener';
+          li.appendChild(a); list.appendChild(li);
+        });
         wrap.appendChild(list);
       }
+    } else if (r.status === 'paid' || r.status === 'accepted' || r.status === 'quoted') {
+      const p = document.createElement('p'); p.className='muted';
+      p.textContent = (r.status==='paid') ? 'Paid. Waiting for delivery.' :
+                      (r.status==='accepted') ? 'Accepted. Awaiting payment/processing.' :
+                      'Awaiting your decision.';
+      wrap.appendChild(p);
     }
 
     return card;
   }
 
   (async function main(){
+    const who = document.getElementById('who');
+    const raw = document.getElementById('raw');
     const err = document.getElementById('err');
     const list = document.getElementById('list');
 
-    // Verify logged-in user
     const me = await safeJSON('/api/auth/me');
+    who.textContent = me.text;
     const user = me.data && (me.data.data ?? me.data);
     if (!user || !user.id){
       document.querySelector('main').innerHTML = '<h2>Please log in to view your requests.</h2>';
       return;
     }
 
-    // Load my requests (summary)
     const mine = await safeJSON('/api/services?mine=1');
+    raw.textContent = mine.text;
+
     let rows = mine.data && (mine.data.data ?? mine.data);
     if (!Array.isArray(rows)) rows = [];
 
-    // For each request, hydrate with detail (messages/deliverables)
+    // Hydrate details if allowed; do not fail whole page if some 403
     const detailed = [];
     for (const r of rows){
+      let merged = { ...r };
       const det = await safeJSON(\`/api/services/\${r.id}\`);
-      const data = det.data && (det.data.data ?? det.data);
-      detailed.push({ ...r, ...(data || {}) });
+      if (det.ok && det.data) {
+        const data = det.data.data ?? det.data;
+        merged = { ...merged, ...(data || {}) };
+      }
+      detailed.push(merged);
     }
 
     if (detailed.length === 0){
