@@ -15,6 +15,7 @@
   .small { font-size:.9rem; padding:.45rem .7rem; }
   pre { background: rgba(255,255,255,.05); padding: 10px; border-radius: 12px; overflow:auto; }
   .diag { margin: 12px 0; }
+  .err { color: #ff8a8a; }
 </style>
 </head><body>
 <div class="container">
@@ -34,9 +35,10 @@
       <h4>Diagnostics</h4>
       <div>Current user (/api/auth/me):</div>
       <pre id="who">…</pre>
+      <div class="err" id="whoerr"></div>
       <div>Mine list payload (/api/services?mine=1):</div>
       <pre id="raw">…</pre>
-      <div id="err" class="muted"></div>
+      <div class="err" id="rawerr"></div>
     </div>
 
     <div id="list" class="grid"></div>
@@ -46,10 +48,14 @@
 <script>
   const money = (c) => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format((+c||0)/100);
   async function safeJSON(path, init={}){
-    const res = await fetch(path, { credentials:'include', ...init });
-    const text = await res.text();
-    try { return { ok: res.ok, status: res.status, data: JSON.parse(text), text }; }
-    catch { return { ok: res.ok, status: res.status, data: null, text }; }
+    try{
+      const res = await fetch(path, { credentials:'include', ...init });
+      const text = await res.text();
+      try { return { ok: res.ok, status: res.status, data: JSON.parse(text), text, error:null }; }
+      catch { return { ok: res.ok, status: res.status, data: null, text, error:null }; }
+    }catch(e){
+      return { ok:false, status:0, data:null, text:'', error: (e && (e.message||String(e))) || 'Network error' };
+    }
   }
 
   function requestCard(r){
@@ -82,7 +88,7 @@
           method:'PATCH', headers:{'content-type':'application/json'},
           body: JSON.stringify({ op:'accept', request_id: r.id })
         });
-        if (!res.ok){ alert(res.text); return; }
+        if (!res.ok){ alert(res.error || res.text || 'Failed to accept'); return; }
         const data = res.data && (res.data.data ?? res.data);
         Object.assign(r, data);
         location.reload();
@@ -92,7 +98,6 @@
 
     const wrap = card.querySelector('.downloads');
     if (r.status === 'delivered'){
-      // Prefer deliverables; otherwise surface assets-like info if present in summary
       const delivs = Array.isArray(r.deliverables) ? r.deliverables : [];
       wrap.innerHTML = '<h4>Deliverables</h4>';
       if (delivs.length === 0){
@@ -102,7 +107,7 @@
         delivs.forEach(d => {
           const li = document.createElement('li'); li.className='row';
           const a = document.createElement('a');
-          a.textContent = d.label || 'File'; a.href = d.file_key; a.target='_blank'; a.rel='noopener';
+          a.textContent = d.label || 'File'; a.href = d.file_key; a.target='_blank'; a.rel = 'noopener';
           li.appendChild(a); list.appendChild(li);
         });
         wrap.appendChild(list);
@@ -110,7 +115,7 @@
     } else if (r.status === 'paid' || r.status === 'accepted' || r.status === 'quoted') {
       const p = document.createElement('p'); p.className='muted';
       p.textContent = (r.status==='paid') ? 'Paid. Waiting for delivery.' :
-                      (r.status==='accepted') ? 'Accepted. Awaiting payment/processing.' :
+                      (r.status==='accepted') ? 'Accepted. Awaiting delivery.' :
                       'Awaiting your decision.';
       wrap.appendChild(p);
     }
@@ -120,12 +125,14 @@
 
   (async function main(){
     const who = document.getElementById('who');
+    const whoerr = document.getElementById('whoerr');
     const raw = document.getElementById('raw');
-    const err = document.getElementById('err');
+    const rawerr = document.getElementById('rawerr');
     const list = document.getElementById('list');
 
     const me = await safeJSON('/api/auth/me');
-    who.textContent = me.text;
+    who.textContent = me.text || '';
+    if (me.error) { whoerr.textContent = me.error; }
     const user = me.data && (me.data.data ?? me.data);
     if (!user || !user.id){
       document.querySelector('main').innerHTML = '<h2>Please log in to view your requests.</h2>';
@@ -133,12 +140,12 @@
     }
 
     const mine = await safeJSON('/api/services?mine=1');
-    raw.textContent = mine.text;
+    raw.textContent = mine.text || '';
+    if (mine.error) { rawerr.textContent = mine.error; }
 
     let rows = mine.data && (mine.data.data ?? mine.data);
     if (!Array.isArray(rows)) rows = [];
 
-    // Hydrate details if allowed; do not fail whole page if some 403
     const detailed = [];
     for (const r of rows){
       let merged = { ...r };
