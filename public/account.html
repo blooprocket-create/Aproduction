@@ -1,4 +1,4 @@
-﻿<!doctype html><html lang="en"><head>
+﻿<!doctype html><html><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Account - A.Production (of sorts)</title>
 <link rel="stylesheet" href="/styles/base.css"><link rel="stylesheet" href="/styles/components.css">
@@ -39,23 +39,32 @@
       <h3>Purchases & Access</h3>
       <div id="ent" class="grid cols-3"></div>
     </div>
+    <div class="card" style="margin-top:24px" id="requests-card">
+      <h3>My Service Requests</h3>
+      <div id="requests-list" class="grid cols-3 hidden"></div>
+      <p id="requests-empty" class="muted hidden">No service requests yet.</p>
+    </div>
   </div>
 <script type="module">
-  import { currentUser, api, money } from '/scripts/api.js';
+  import { currentUser, api, money, Service } from '/scripts/api.js';
   import { wireNav } from '/scripts/nav.js';
+
   await wireNav('nav-account');
+
   const me = await currentUser();
   if (!me) {
     location.href = '/login.html';
   }
+
   document.getElementById('me').textContent = `${me.email} - role: ${me.role}`;
-  const root = document.getElementById('ent');
-  root.innerHTML = '';
-  const items = await api('/me/entitlements');
-  (items || []).forEach((p) => {
+
+  const entRoot = document.getElementById('ent');
+  entRoot.innerHTML = '';
+  const entitlements = await api('/me/entitlements');
+  (entitlements || []).forEach((p) => {
     const wrap = document.createElement('div');
     wrap.className = 'card product';
-    const href = p.kind === 'course' ? `/course.html?id=${p.id}` : `/product.html?id=${p.id}`;
+    const href = p.kind === 'service' ? `/service.html?id=${p.id}` : `/product.html?id=${p.id}`;
     wrap.innerHTML = `
       <span class="badge">${(p.kind || '').toUpperCase()}</span>
       <h4>${p.title}</h4>
@@ -65,8 +74,41 @@
         <a class="button" href="${href}">Open</a>
       </div>
     `;
-    root.appendChild(wrap);
+    entRoot.appendChild(wrap);
   });
+
+  const requestsList = document.getElementById('requests-list');
+  const requestsEmpty = document.getElementById('requests-empty');
+  requestsList.innerHTML = '';
+  requestsList.classList.add('hidden');
+
+  try {
+    const requests = await Service.myRequests();
+    if (!requests || requests.length === 0) {
+      requestsEmpty.classList.remove('hidden');
+    } else {
+      requestsEmpty.classList.add('hidden');
+      requestsList.classList.remove('hidden');
+      requests.forEach((req) => {
+        const card = document.createElement('div');
+        card.className = 'card product';
+        const href = `/service.html?id=${req.service_id}`;
+        card.innerHTML = `
+          <span class="badge">${(req.status || '').toUpperCase()}</span>
+          <h4>${req.service_title || req.title}</h4>
+          <p class="muted">${req.title}</p>
+          <div class="row" style="justify-content:space-between;align-items:end">
+            <div class="price">${req.price_cents != null ? money(req.price_cents) : '—'}</div>
+            <a class="button ghost" href="${href}">View service</a>
+          </div>
+        `;
+        requestsList.appendChild(card);
+      });
+    }
+  } catch (error) {
+    requestsEmpty.textContent = error.message || 'Unable to load requests.';
+    requestsEmpty.classList.remove('hidden');
+  }
 </script>
 <script type="module" src="/scripts/nav.js"></script>
 </body></html>

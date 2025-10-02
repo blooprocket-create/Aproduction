@@ -1,4 +1,4 @@
-import { query } from '../_utils/db.js';
+﻿import { query } from '../_utils/db.js';
 import { readAuth } from '../_utils/jwt.js';
 
 export default async function handler(req, res){
@@ -68,6 +68,14 @@ export default async function handler(req, res){
       return res.status(400).json({ ok:false, error:'Unknown op' });
     }
 
+    if (req.method === 'DELETE'){
+      if (!user || user.role !== 'admin') return res.status(403).json({ ok:false, error:'Forbidden' });
+      const svc = await query("select id from products where id=$1 and kind='service'", [id]);
+      if (!svc.rowCount) return res.status(404).json({ ok:false, error:'Not found' });
+      await query('delete from products where id=$1', [id]);
+      res.setHeader('content-type','application/json');
+      return res.status(200).json({ ok:true, data:{ deleted:true } });
+    }
     if (req.method === 'POST'){
       const b = req.body || {};
       if (b && b.op === 'message'){
@@ -90,3 +98,6 @@ export default async function handler(req, res){
     return res.status(500).json({ ok:false, error:'Server error' });
   }
 }
+
+
+

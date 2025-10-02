@@ -5,7 +5,16 @@
 
 <script defer src="/_vercel/speed-insights/script.js"></script>
 <script defer src="/_vercel/insights/script.js"></script>
-
+<style>
+  .cp-tabs{display:flex;gap:10px;margin:16px 0;align-items:center;flex-wrap:wrap}
+  .panel{display:none}
+  .panel.active{display:block}
+  .requests-empty{color:var(--muted);padding:12px 0}
+  .request-actions{display:flex;flex-direction:column;gap:8px}
+  .request-actions form{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  .request-actions form .input{max-width:160px}
+  .request-actions button.button.small{padding:8px 14px;font-size:0.85rem}
+</style>
 </head><body>
 <div class="container">
   <nav class="nav" id="nav">
@@ -36,12 +45,13 @@
   <h1>Control Panel</h1>
   <div id="who" class="muted"></div>
   <div id="admin" class="grid hidden">
-    <div class="metrics" id="metrics">
+    <section id="metrics-card" class="metrics card hidden" aria-live="polite">
       <div class="metric"><h4>Users</h4><div class="val" id="m-users">-</div></div>
       <div class="metric"><h4>Published</h4><div class="val" id="m-published">-</div></div>
       <div class="metric"><h4>Revenue</h4><div class="val" id="m-revenue">-</div></div>
-    </div>
-    <div class="card"><h3>Create Product/Service</h3>
+    </section>
+    <section class="card">
+      <h3>Create Product/Service</h3>
       <form id="create" class="grid">
         <select name="kind"><option value="product">Product</option><option value="course">Course</option><option value="service">Service</option></select>
         <input class="input" name="slug" placeholder="slug" required>
@@ -51,37 +61,96 @@
         <label><input type="checkbox" name="published"> Published</label>
         <button class="button" type="submit">Create</button>
       </form>
-    </div>
-    <div class="card" style="grid-column: span 2;">
-      <h3>Catalog</h3>
-      <div class="table-wrap">
-        <table class="table" id="catalog">
-          <thead><tr><th>Kind</th><th>Title</th><th>Slug</th><th>Price</th><th>Published</th><th>ID</th><th>Actions</th></tr></thead>
-          <tbody></tbody>
-        </table>
+    </section>
+    <section class="card" style="grid-column: span 2;">
+      <div class="tabs cp-tabs" id="cp-tabs">
+        <button class="tab active" data-tab="catalog" type="button">Catalog</button>
+        <button class="tab" data-tab="requests" type="button">Requests</button>
       </div>
-      <div id="catalog-cards" class="grid hidden"></div>
-    </div>
+      <section class="panel active" id="panel-catalog">
+        <div class="table-wrap">
+          <table class="table" id="catalog">
+            <thead><tr><th>Kind</th><th>Title</th><th>Slug</th><th>Price</th><th>Published</th><th>ID</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div id="catalog-cards" class="grid hidden"></div>
+      </section>
+      <section class="panel" id="panel-requests">
+        <div class="table-wrap">
+          <table class="table requests-table">
+            <thead>
+              <tr>
+                <th>Created</th>
+                <th>Service</th>
+                <th>Customer</th>
+                <th>Status</th>
+                <th>Quoted</th>
+                <th style="width:320px">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="requests-body"></tbody>
+          </table>
+        </div>
+        <p id="requests-empty" class="requests-empty hidden">No active requests yet.</p>
+      </section>
+    </section>
   </div>
 </div>
 <div class="nav-overlay"></div>
 <script type="module">
-  import { api, Auth, money } from '/scripts/api.js';
+  import { api, Auth, money, Service } from '/scripts/api.js';
   import { wireNav } from '/scripts/nav.js';
+
   await wireNav('nav-control');
+
   const who = document.getElementById('who');
   const admin = document.getElementById('admin');
+  const metricsCard = document.getElementById('metrics-card');
+  const catalogBody = document.querySelector('#catalog tbody');
+  const requestsBody = document.getElementById('requests-body');
+  const requestsEmpty = document.getElementById('requests-empty');
+  const tabButtons = Array.from(document.querySelectorAll('#cp-tabs .tab'));
+  const panels = {
+    catalog: document.getElementById('panel-catalog'),
+    requests: document.getElementById('panel-requests')
+  };
+
+  let currentTab = 'catalog';
+  let me = null;
+  let canDelete = false;
+
+  function setTab(name){
+    currentTab = name;
+    tabButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.tab === name));
+    Object.entries(panels).forEach(([key, panel]) => {
+      if (!panel) return;
+      panel.classList.toggle('active', key === name);
+    });
+    if (name === 'requests') {
+      loadRequests().catch(err => alert(err.message));
+    }
+  }
+
+  tabButtons.forEach(btn => {
+    btn.addEventListener('click', () => setTab(btn.dataset.tab));
+  });
+
   try {
-    const me = await Auth.me();
-    if (!['admin','editor'].includes(me.role)) { location.href = '/'; }
+    me = await Auth.me();
+    if (!['admin','editor'].includes(me.role)) { location.href = '/'; return; }
     who.textContent = `Signed in as ${me.email} - role: ${me.role}`;
     admin.classList.remove('hidden');
+    canDelete = me.role === 'admin';
+
     if (me.role === 'admin') {
+      metricsCard.classList.remove('hidden');
       const stats = await api('/admin/stats');
       document.getElementById('m-users').textContent = Number(stats.users || 0).toLocaleString();
       document.getElementById('m-published').textContent = Number(stats.published || 0).toLocaleString();
       document.getElementById('m-revenue').textContent = money(Number(stats.revenue_cents || 0));
     }
+
     document.getElementById('create').onsubmit = async (event) => {
       event.preventDefault();
       const fd = new FormData(event.target);
@@ -98,90 +167,203 @@
         alert(error.message);
       }
     };
-    async function loadCatalog() {
-      const [products, services] = await Promise.all([api('/products?all=1'), api('/services?all=1')]);
-      const rows = [...(products || []), ...(services || [])];
-      const tbody = document.querySelector('#catalog tbody');
-      tbody.innerHTML = '';
-      rows.forEach((row) => tbody.appendChild(makeRow(row)));
-    }
-    function makeRow(row) {
-      const tr = document.createElement('tr');
-      tr.dataset.id = row.id;
-      tr.dataset.kind = row.kind;
-      tr.innerHTML = `
-        <td>${(row.kind || '').toUpperCase()}</td>
-        <td class="cell" data-field="title">${row.title}</td>
-        <td class="cell" data-field="slug">${row.slug}</td>
-        <td class="cell" data-field="price_cents">${money(row.price_cents)}</td>
-        <td class="cell" data-field="published">${row.published ? 'Yes' : 'No'}</td>
-        <td>${row.id.slice(0, 8)}...</td>
-        <td><a href="#" class="pill act-edit">Edit</a></td>`;
-      tr.querySelector('.act-edit').addEventListener('click', (event) => {
-        event.preventDefault();
-        enterEdit(tr, row);
-      });
-      return tr;
-    }
-    function enterEdit(tr, row) {
-      const cells = tr.querySelectorAll('.cell');
-      cells.forEach((td) => {
-        const field = td.dataset.field;
-        if (field === 'published') {
-          td.innerHTML = `<div class="cell-edit"><input type="checkbox" ${row.published ? 'checked' : ''}></div>`;
-        } else if (field === 'price_cents') {
-          td.innerHTML = `<div class="cell-edit"><input type="number" min="0" step="0.01" value="${(row.price_cents || 0) / 100}"></div>`;
-        } else {
-          td.innerHTML = `<div class="cell-edit"><input type="text" value="${row[field] || ''}"></div>`;
-        }
-      });
-      const actions = tr.querySelector('td:last-child');
-      actions.innerHTML = `<a href="#" class="pill act-save">Save</a> <a href="#" class="pill act-cancel">Cancel</a>`;
-      const save = actions.querySelector('.act-save');
-      const cancel = actions.querySelector('.act-cancel');
-      const submit = async () => {
-        const payload = {};
-        tr.querySelectorAll('.cell').forEach((td) => {
-          const field = td.dataset.field;
-          const input = td.querySelector('input');
-          if (!input) return;
-          if (field === 'price_cents') {
-            payload[field] = Math.round(Number(input.value || 0) * 100);
-          } else if (field === 'published') {
-            payload[field] = !!input.checked;
-          } else {
-            payload[field] = input.value;
-          }
-        });
-        try {
-          const base = row.kind === 'service' ? '/services' : '/products';
-          await api(`${base}/${row.id}`, { method: 'PATCH', body: JSON.stringify(payload) });
-          const fresh = await api(`${base}/${row.id}`);
-          const replacement = makeRow(fresh);
-          tr.replaceWith(replacement);
-        } catch (error) {
-          alert(error.message);
-        }
-      };
-      save.addEventListener('click', (event) => {
-        event.preventDefault();
-        submit();
-      });
-      cancel.addEventListener('click', (event) => {
-        event.preventDefault();
-        loadCatalog();
-      });
-      tr.addEventListener('keydown', (event) => {
-        if (event.key === 'Enter') {
-          event.preventDefault();
-          submit();
-        }
-      });
-    }
+
     await loadCatalog();
+    setTab('catalog');
   } catch (error) {
     location.href = '/login.html';
+  }
+
+  async function loadCatalog(){
+    const [products, services] = await Promise.all([api('/products?all=1'), api('/services?all=1')]);
+    const rows = [...(products || []), ...(services || [])];
+    catalogBody.innerHTML = '';
+    rows.forEach(row => catalogBody.appendChild(makeRow(row)));
+  }
+
+  function makeRow(row){
+    const tr = document.createElement('tr');
+    tr.dataset.id = row.id;
+    tr.dataset.kind = row.kind;
+    tr.innerHTML = `
+      <td>${(row.kind || '').toUpperCase()}</td>
+      <td class="cell" data-field="title">${row.title}</td>
+      <td class="cell" data-field="slug">${row.slug}</td>
+      <td class="cell" data-field="price_cents">${money(row.price_cents)}</td>
+      <td class="cell" data-field="published">${row.published ? 'Yes' : 'No'}</td>
+      <td>${row.id.slice(0, 8)}...</td>
+      <td></td>`;
+    const actions = tr.querySelector('td:last-child');
+    const edit = document.createElement('a');
+    edit.href = '#';
+    edit.className = 'pill act-edit';
+    edit.textContent = 'Edit';
+    edit.addEventListener('click', (event) => { event.preventDefault(); enterEdit(tr, row); });
+    actions.appendChild(edit);
+    if (canDelete) {
+      const del = document.createElement('a');
+      del.href = '#';
+      del.className = 'pill';
+      del.textContent = 'Delete';
+      del.style.marginLeft = '8px';
+      del.addEventListener('click', (event) => {
+        event.preventDefault();
+        deleteItem(row).catch(err => alert(err.message));
+      });
+      actions.appendChild(del);
+    }
+    return tr;
+  }
+
+  function enterEdit(tr, row){
+    const cells = tr.querySelectorAll('.cell');
+    cells.forEach(td => {
+      const field = td.dataset.field;
+      if (field === 'published') {
+        td.innerHTML = `<div class="cell-edit"><input type="checkbox" ${row.published ? 'checked' : ''}></div>`;
+      } else if (field === 'price_cents') {
+        td.innerHTML = `<div class="cell-edit"><input type="number" min="0" step="0.01" value="${(row.price_cents || 0) / 100}"></div>`;
+      } else {
+        td.innerHTML = `<div class="cell-edit"><input type="text" value="${row[field] || ''}"></div>`;
+      }
+    });
+    const actions = tr.querySelector('td:last-child');
+    actions.innerHTML = '';
+    const save = document.createElement('a');
+    save.href = '#';
+    save.className = 'pill act-save';
+    save.textContent = 'Save';
+    const cancel = document.createElement('a');
+    cancel.href = '#';
+    cancel.className = 'pill act-cancel';
+    cancel.textContent = 'Cancel';
+    save.addEventListener('click', (event) => { event.preventDefault(); submit(); });
+    cancel.addEventListener('click', (event) => { event.preventDefault(); loadCatalog(); });
+    actions.appendChild(save);
+    actions.appendChild(cancel);
+
+    const submit = async () => {
+      const payload = {};
+      tr.querySelectorAll('.cell').forEach(td => {
+        const field = td.dataset.field;
+        const input = td.querySelector('input');
+        if (!input) return;
+        if (field === 'price_cents') {
+          payload[field] = Math.round(Number(input.value || 0) * 100);
+        } else if (field === 'published') {
+          payload[field] = !!input.checked;
+        } else {
+          payload[field] = input.value;
+        }
+      });
+      try {
+        const base = row.kind === 'service' ? '/services' : '/products';
+        await api(`${base}/${row.id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+        const fresh = await api(`${base}/${row.id}`);
+        tr.replaceWith(makeRow(fresh));
+      } catch (error) {
+        alert(error.message);
+      }
+    };
+
+    tr.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        submit();
+      }
+    }, { once: true });
+  }
+
+  async function deleteItem(row){
+    if (!canDelete) return;
+    const confirmed = window.confirm(`Delete ${row.title}? This cannot be undone.`);
+    if (!confirmed) return;
+    const base = row.kind === 'service' ? '/services' : '/products';
+    await api(`${base}/${row.id}`, { method: 'DELETE' });
+    await loadCatalog();
+    if (currentTab === 'requests') {
+      try {
+        await loadRequests();
+      } catch (error) {
+        alert(error.message);
+      }
+    }
+  }
+
+  async function loadRequests(){
+    if (!panels.requests) return;
+    const rows = await Service.adminRequests();
+    requestsBody.innerHTML = '';
+    if (!rows || rows.length === 0) {
+      requestsEmpty.classList.remove('hidden');
+      return;
+    }
+    requestsEmpty.classList.add('hidden');
+    rows.forEach(row => requestsBody.appendChild(renderRequestRow(row)));
+  }
+
+  function renderRequestRow(row){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${new Date(row.created_at).toLocaleString()}</td>
+      <td>${row.service_title}</td>
+      <td>${row.customer_email || ''}</td>
+      <td>${row.status}</td>
+      <td>${row.price_cents != null ? money(row.price_cents) : '-'}</td>
+      <td class="request-actions"></td>`;
+    const actions = tr.querySelector('.request-actions');
+
+    if (row.status === 'submitted' || row.status === 'quoted') {
+      const form = document.createElement('form');
+      form.innerHTML = `
+        <input name="price" type="number" min="0" step="1" placeholder="Price (cents)" class="input">
+        <button class="button small">Send Quote</button>`;
+      form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const cents = Number.parseInt(form.price.value || '0', 10);
+        await Service.quote(row.id, Math.max(0, cents));
+        await loadRequests();
+      });
+      actions.appendChild(form);
+    }
+
+    if (row.status === 'accepted' || row.status === 'quoted') {
+      const paidBtn = document.createElement('button');
+      paidBtn.type = 'button';
+      paidBtn.className = 'button small ghost';
+      paidBtn.textContent = 'Mark Paid';
+      paidBtn.addEventListener('click', async () => {
+        await Service.markPaid(row.id);
+        await loadRequests();
+      });
+      actions.appendChild(paidBtn);
+    }
+    if (row.status === 'paid' || row.status === 'delivered') {
+      const deliverForm = document.createElement('form');
+      deliverForm.innerHTML = `
+        <input name="label" class="input" placeholder="Deliverable label" required>
+        <input name="url" class="input" placeholder="https://file-url" required>
+        <button class="button small">Deliver</button>`;
+      deliverForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const label = deliverForm.label.value.trim();
+        const url = deliverForm.url.value.trim();
+        if (!label || !url) return;
+        await Service.deliver(row.id, { label, file_key: url });
+        deliverForm.reset();
+        await loadRequests();
+      });
+      actions.appendChild(deliverForm);
+    }
+
+    return tr;
   }
 </script>
 <script type="module" src="/scripts/nav.js"></script>
 </body></html>
+
+
+
+
+
+
