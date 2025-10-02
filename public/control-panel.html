@@ -2,18 +2,24 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Control Panel - A.Production (of sorts)</title>
 <link rel="stylesheet" href="/styles/base.css"><link rel="stylesheet" href="/styles/components.css">
-
 <script defer src="/_vercel/speed-insights/script.js"></script>
 <script defer src="/_vercel/insights/script.js"></script>
 <style>
-  .cp-tabs{display:flex;gap:10px;margin:16px 0;align-items:center;flex-wrap:wrap}
-  .panel{display:none}
+  .cp-layout{display:grid;grid-template-columns:220px 1fr;gap:24px;min-height:70vh}
+  .cp-sidebar{background:var(--panel);border-radius:var(--radius);padding:18px;border:1px solid #1f2030;box-shadow:var(--shadow);display:flex;flex-direction:column;gap:12px}
+  .cp-nav-item{display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;background:transparent;border:1px solid #26293b;color:var(--muted);font-weight:600;text-align:left;cursor:pointer;transition:background .2s ease,color .2s ease,border-color .2s ease}
+  .cp-nav-item.active,.cp-nav-item:hover{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff;border-color:transparent}
+  .cp-main{display:flex;flex-direction:column;gap:24px}
+  .panel{display:none;background:var(--panel);border-radius:var(--radius);padding:24px;border:1px solid #1f2030;box-shadow:var(--shadow)}
   .panel.active{display:block}
-  .requests-empty{color:var(--muted);padding:12px 0}
-  .request-actions{display:flex;flex-direction:column;gap:8px}
-  .request-actions form{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
-  .request-actions form .input{max-width:160px}
-  .request-actions button.button.small{padding:8px 14px;font-size:0.85rem}
+  .panel h2{margin-top:0}
+  .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:18px}
+  .stats-grid .metric{min-height:120px}
+  .table-wrap{overflow:auto}
+  .cp-forms{display:grid;gap:18px}
+  .cp-forms form{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+  .cp-forms button{justify-self:start}
+  @media(max-width:960px){.cp-layout{grid-template-columns:1fr}.cp-sidebar{flex-direction:row;overflow:auto}.cp-nav-item{flex:1;justify-content:center}}
 </style>
 </head><body>
 <div class="container">
@@ -44,39 +50,74 @@
   </nav>
   <h1>Control Panel</h1>
   <div id="who" class="muted"></div>
-  <div id="admin" class="grid hidden">
-    <section id="metrics-card" class="metrics card hidden" aria-live="polite">
-      <div class="metric"><h4>Users</h4><div class="val" id="m-users">-</div></div>
-      <div class="metric"><h4>Published</h4><div class="val" id="m-published">-</div></div>
-      <div class="metric"><h4>Revenue</h4><div class="val" id="m-revenue">-</div></div>
-    </section>
-    <section class="card">
-      <h3>Create Product/Service</h3>
-      <form id="create" class="grid">
-        <select name="kind"><option value="product">Product</option><option value="course">Course</option><option value="service">Service</option></select>
-        <input class="input" name="slug" placeholder="slug" required>
-        <input class="input" name="title" placeholder="title" required>
-        <textarea class="input" name="description" placeholder="description"></textarea>
-        <input class="input" name="price" placeholder="price in USD (e.g. 99.00)" type="number" min="0" step="0.01" required>
-        <label><input type="checkbox" name="published"> Published</label>
-        <button class="button" type="submit">Create</button>
-      </form>
-    </section>
-    <section class="card" style="grid-column: span 2;">
-      <div class="tabs cp-tabs" id="cp-tabs">
-        <button class="tab active" data-tab="catalog" type="button">Catalog</button>
-        <button class="tab" data-tab="requests" type="button">Requests</button>
-      </div>
-      <section class="panel active" id="panel-catalog">
+  <div class="cp-layout" id="cp-layout" hidden>
+    <aside class="cp-sidebar" id="cp-nav">
+      <button class="cp-nav-item active" data-tab="stats">Stats</button>
+      <button class="cp-nav-item" data-tab="products">Products</button>
+      <button class="cp-nav-item" data-tab="users">Users</button>
+      <button class="cp-nav-item" data-tab="requests">Service Requests</button>
+    </aside>
+    <main class="cp-main">
+      <section class="panel active" id="panel-stats">
+        <h2>Site Stats</h2>
+        <div class="stats-grid">
+          <div class="metric"><h4>Users</h4><div class="val" id="stat-users">—</div></div>
+          <div class="metric"><h4>Published Products</h4><div class="val" id="stat-published">—</div></div>
+          <div class="metric"><h4>Sales</h4><div class="val" id="stat-orders">—</div></div>
+          <div class="metric"><h4>Revenue</h4><div class="val" id="stat-revenue">—</div></div>
+        </div>
+      </section>
+      <section class="panel" id="panel-products">
+        <h2>Products</h2>
+        <div class="cp-forms">
+          <form id="product-create">
+            <select name="kind">
+              <option value="product">Product</option>
+              <option value="course">Course</option>
+              <option value="service">Service</option>
+            </select>
+            <input class="input" name="slug" placeholder="Slug" required>
+            <input class="input" name="title" placeholder="Title" required>
+            <textarea class="input" name="description" placeholder="Description"></textarea>
+            <input class="input" name="price" type="number" min="0" step="0.01" placeholder="Price in USD" required>
+            <label><input type="checkbox" name="published"> Published</label>
+            <button class="button" type="submit">Create</button>
+          </form>
+        </div>
         <div class="table-wrap">
-          <table class="table" id="catalog">
-            <thead><tr><th>Kind</th><th>Title</th><th>Slug</th><th>Price</th><th>Published</th><th>ID</th><th>Actions</th></tr></thead>
+          <table class="table" id="products-table">
+            <thead>
+              <tr><th>Kind</th><th>Title</th><th>Slug</th><th>Price</th><th>Published</th><th>ID</th><th>Actions</th></tr>
+            </thead>
             <tbody></tbody>
           </table>
         </div>
-        <div id="catalog-cards" class="grid hidden"></div>
+      </section>
+      <section class="panel" id="panel-users">
+        <h2>Users</h2>
+        <div class="cp-forms">
+          <form id="user-create">
+            <input class="input" name="email" placeholder="Email" type="email" required>
+            <input class="input" name="password" placeholder="Password" type="password" required>
+            <select name="role">
+              <option value="customer">Customer</option>
+              <option value="editor">Editor</option>
+              <option value="admin">Admin</option>
+            </select>
+            <button class="button" type="submit">Invite User</button>
+          </form>
+        </div>
+        <div class="table-wrap">
+          <table class="table" id="users-table">
+            <thead>
+              <tr><th>Email</th><th>Role</th><th>Created</th><th>Actions</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
       </section>
       <section class="panel" id="panel-requests">
+        <h2>Service Requests</h2>
         <div class="table-wrap">
           <table class="table requests-table">
             <thead>
@@ -85,99 +126,60 @@
                 <th>Service</th>
                 <th>Customer</th>
                 <th>Status</th>
-                <th>Quoted</th>
+                <th>Quote</th>
                 <th style="width:320px">Actions</th>
               </tr>
             </thead>
             <tbody id="requests-body"></tbody>
           </table>
         </div>
-        <p id="requests-empty" class="requests-empty hidden">No active requests yet.</p>
+        <p id="requests-empty" class="muted hidden">No active requests yet.</p>
       </section>
-    </section>
+    </main>
   </div>
 </div>
-<div class="nav-overlay"></div>
 <script type="module">
   import { api, Auth, money, Service } from '/scripts/api.js';
   import { wireNav } from '/scripts/nav.js';
 
   await wireNav('nav-control');
 
+  const state = {
+    me: null,
+    currentTab: 'stats',
+    canDeleteProducts: false,
+  };
+
+  const layout = document.getElementById('cp-layout');
   const who = document.getElementById('who');
-  const adminWrap = document.getElementById('admin');
-  const metricsCard = document.getElementById('metrics-card');
-  const tabButtons = Array.from(document.querySelectorAll('#cp-tabs .tab'));
+  const navButtons = Array.from(document.querySelectorAll('.cp-nav-item'));
   const panels = {
-    catalog: document.getElementById('panel-catalog'),
+    stats: document.getElementById('panel-stats'),
+    products: document.getElementById('panel-products'),
+    users: document.getElementById('panel-users'),
     requests: document.getElementById('panel-requests'),
   };
-  const catalogBody = document.querySelector('#catalog tbody');
+
+  const productsTable = document.querySelector('#products-table tbody');
+  const usersTable = document.querySelector('#users-table tbody');
   const requestsBody = document.getElementById('requests-body');
   const requestsEmpty = document.getElementById('requests-empty');
 
-  const state = {
-    me: null,
-    canDelete: false,
-    currentTab: 'catalog',
+  const loaders = {
+    stats: loadStats,
+    products: loadProducts,
+    users: loadUsers,
+    requests: loadRequests,
   };
 
-  tabButtons.forEach((btn) => {
-    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  navButtons.forEach((btn) => {
+    btn.addEventListener('click', () => activateTab(btn.dataset.tab));
   });
 
-  function switchTab(name) {
-    state.currentTab = name;
-    tabButtons.forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === name));
-    Object.entries(panels).forEach(([key, panel]) => {
-      if (panel) panel.classList.toggle('active', key === name);
-    });
-    if (name === 'requests') loadRequests();
-  }
-
-  async function init() {
-    try {
-      state.me = await Auth.me();
-    } catch (error) {
-      location.href = '/login.html';
-      return;
-    }
-
-    if (!state.me || !['admin', 'editor'].includes(state.me.role)) {
-      location.href = '/';
-      return;
-    }
-
-    who.textContent = Signed in as  - role: ;
-    adminWrap.classList.remove('hidden');
-    state.canDelete = state.me.role === 'admin';
-
-    if (state.me.role === 'admin') {
-      metricsCard.classList.remove('hidden');
-      loadMetrics();
-    }
-
-    await loadCatalog();
-    switchTab('catalog');
-  }
-
-  async function loadMetrics() {
-    try {
-      const stats = await api('/admin/stats');
-      document.getElementById('m-users').textContent = Number(stats.users || 0).toLocaleString();
-      document.getElementById('m-published').textContent = Number(stats.published || 0).toLocaleString();
-      document.getElementById('m-revenue').textContent = money(Number(stats.revenue_cents || 0));
-    } catch (error) {
-      document.getElementById('m-users').textContent = '—';
-      document.getElementById('m-published').textContent = '—';
-      document.getElementById('m-revenue').textContent = '—';
-      console.error('Failed to load metrics', error);
-    }
-  }
-
-  document.getElementById('create').addEventListener('submit', async (event) => {
+  const productForm = document.getElementById('product-create');
+  productForm.addEventListener('submit', async (event) => {
     event.preventDefault();
-    const fd = new FormData(event.target);
+    const fd = new FormData(productForm);
     const payload = Object.fromEntries(fd.entries());
     payload.published = !!fd.get('published');
     payload.price_cents = Math.round(Number(payload.price || 0) * 100);
@@ -185,47 +187,98 @@
     const path = payload.kind === 'service' ? '/services' : '/products';
     try {
       await api(path, { method: 'POST', body: JSON.stringify(payload) });
-      event.target.reset();
-      await loadCatalog();
+      productForm.reset();
+      await loadProducts();
       if (state.currentTab === 'requests') await loadRequests();
     } catch (error) {
       alert(error.message);
     }
   });
 
-  async function loadCatalog() {
+  const userForm = document.getElementById('user-create');
+  userForm.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const fd = new FormData(userForm);
+    const payload = Object.fromEntries(fd.entries());
+    try {
+      await api('/admin/users', { method: 'POST', body: JSON.stringify(payload) });
+      userForm.reset();
+      await loadUsers();
+    } catch (error) {
+      alert(error.message);
+    }
+  });
+
+  init();
+
+  async function init(){
+    try {
+      state.me = await Auth.me();
+    } catch {
+      location.href = '/login.html';
+      return;
+    }
+    if (!state.me || !['admin','editor'].includes(state.me.role)) {
+      location.href = '/';
+      return;
+    }
+    who.textContent = `Signed in as ${state.me.email} — role: ${state.me.role}`;
+    state.canDeleteProducts = state.me.role === 'admin';
+    layout.hidden = false;
+    await activateTab('stats');
+  }
+
+  async function activateTab(tab){
+    state.currentTab = tab;
+    navButtons.forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tab));
+    Object.entries(panels).forEach(([key, panel]) => {
+      panel.classList.toggle('active', key === tab);
+    });
+    const loader = loaders[tab];
+    if (loader) await loader();
+  }
+
+  async function loadStats(){
+    try {
+      const stats = await api('/admin/stats');
+      document.getElementById('stat-users').textContent = Number(stats.users || 0).toLocaleString();
+      document.getElementById('stat-published').textContent = Number(stats.published || 0).toLocaleString();
+      document.getElementById('stat-orders').textContent = Number(stats.orders || 0).toLocaleString();
+      document.getElementById('stat-revenue').textContent = money(stats.revenue_cents || 0);
+    } catch (error) {
+      alert(error.message);
+    }
+  }
+
+  async function loadProducts(){
     try {
       const [products, services] = await Promise.all([
         api('/products?all=1'),
         api('/services?all=1'),
       ]);
       const rows = [...(products || []), ...(services || [])];
-      catalogBody.innerHTML = '';
-      rows.forEach((row) => catalogBody.appendChild(renderCatalogRow(row)));
+      productsTable.innerHTML = '';
+      rows.forEach(row => productsTable.appendChild(renderProductRow(row)));
     } catch (error) {
-      catalogBody.innerHTML = '';
+      productsTable.innerHTML = '';
       const tr = document.createElement('tr');
-      const td = document.createElement('td');
-      td.colSpan = 7;
-      td.textContent = error.message || 'Unable to load catalog';
-      tr.appendChild(td);
-      catalogBody.appendChild(tr);
+      tr.innerHTML = `<td colspan="7">${error.message || 'Unable to load products'}</td>`;
+      productsTable.appendChild(tr);
     }
   }
 
-  function renderCatalogRow(row) {
+  function renderProductRow(row){
     const tr = document.createElement('tr');
     tr.dataset.id = row.id;
     tr.dataset.kind = row.kind;
-    tr.innerHTML = 
-      <td></td>
-      <td class="cell" data-field="title"></td>
-      <td class="cell" data-field="slug"></td>
-      <td class="cell" data-field="price_cents"></td>
-      <td class="cell" data-field="published"></td>
-      <td>...</td>
-      <td class="catalog-actions"></td>;
-
+    tr.innerHTML = `
+      <td>${(row.kind || '').toUpperCase()}</td>
+      <td class="cell" data-field="title">${row.title}</td>
+      <td class="cell" data-field="slug">${row.slug}</td>
+      <td class="cell" data-field="price_cents">${money(row.price_cents)}</td>
+      <td class="cell" data-field="published">${row.published ? 'Yes' : 'No'}</td>
+      <td>${row.id.slice(0,8)}...</td>
+      <td class="catalog-actions"></td>`;
     const actions = tr.querySelector('.catalog-actions');
     const edit = document.createElement('a');
     edit.href = '#';
@@ -233,39 +286,36 @@
     edit.textContent = 'Edit';
     edit.addEventListener('click', (event) => {
       event.preventDefault();
-      enterEdit(tr, row);
+      enterProductEdit(tr, row);
     });
     actions.appendChild(edit);
-
-    if (state.canDelete) {
+    if (state.canDeleteProducts) {
       const remove = document.createElement('a');
       remove.href = '#';
       remove.className = 'pill';
-      remove.style.marginLeft = '8px';
       remove.textContent = 'Delete';
+      remove.style.marginLeft = '8px';
       remove.addEventListener('click', (event) => {
         event.preventDefault();
-        deleteItem(row);
+        deleteProduct(row);
       });
       actions.appendChild(remove);
     }
-
     return tr;
   }
 
-  function enterEdit(tr, row) {
+  function enterProductEdit(tr, row){
     const cells = tr.querySelectorAll('.cell');
-    cells.forEach((td) => {
+    cells.forEach(td => {
       const field = td.dataset.field;
       if (field === 'published') {
-        td.innerHTML = <div class="cell-edit"><input type="checkbox" ></div>;
+        td.innerHTML = `<div class="cell-edit"><input type="checkbox" ${row.published ? 'checked' : ''}></div>`;
       } else if (field === 'price_cents') {
-        td.innerHTML = <div class="cell-edit"><input type="number" min="0" step="0.01" value=""></div>;
+        td.innerHTML = `<div class="cell-edit"><input type="number" min="0" step="0.01" value="${(row.price_cents || 0)/100}"></div>`;
       } else {
-        td.innerHTML = <div class="cell-edit"><input type="text" value=""></div>;
+        td.innerHTML = `<div class="cell-edit"><input type="text" value="${row[field] || ''}"></div>`;
       }
     });
-
     const actions = tr.querySelector('.catalog-actions');
     actions.innerHTML = '';
     const save = document.createElement('a');
@@ -281,63 +331,119 @@
 
     const submit = async () => {
       const payload = {};
-      tr.querySelectorAll('.cell').forEach((td) => {
+      tr.querySelectorAll('.cell').forEach(td => {
         const field = td.dataset.field;
         const input = td.querySelector('input');
         if (!input) return;
-        if (field === 'price_cents') {
-          payload[field] = Math.round(Number(input.value || 0) * 100);
-        } else if (field === 'published') {
-          payload[field] = !!input.checked;
-        } else {
-          payload[field] = input.value;
-        }
+        if (field === 'price_cents') payload[field] = Math.round(Number(input.value || 0) * 100);
+        else if (field === 'published') payload[field] = !!input.checked;
+        else payload[field] = input.value;
       });
       try {
         const base = row.kind === 'service' ? '/services' : '/products';
-        await api(${base}/, { method: 'PATCH', body: JSON.stringify(payload) });
-        const fresh = await api(${base}/);
-        tr.replaceWith(renderCatalogRow(fresh));
+        await api(`${base}/${row.id}`, { method:'PATCH', body: JSON.stringify(payload) });
+        const fresh = await api(`${base}/${row.id}`);
+        tr.replaceWith(renderProductRow(fresh));
       } catch (error) {
         alert(error.message);
       }
     };
 
-    save.addEventListener('click', (event) => {
-      event.preventDefault();
-      submit();
-    });
-    cancel.addEventListener('click', async (event) => {
-      event.preventDefault();
-      await loadCatalog();
-    });
+    save.addEventListener('click', (event) => { event.preventDefault(); submit(); });
+    cancel.addEventListener('click', async (event) => { event.preventDefault(); await loadProducts(); });
   }
 
-  async function deleteItem(row) {
-    if (!state.canDelete) return;
-    const confirmed = window.confirm(Delete ? This cannot be undone.);
-    if (!confirmed) return;
+  async function deleteProduct(row){
+    if (!window.confirm(`Delete ${row.title}? This cannot be undone.`)) return;
     const base = row.kind === 'service' ? '/services' : '/products';
     try {
-      await api(${base}/, { method: 'DELETE' });
-      await loadCatalog();
+      await api(`${base}/${row.id}`, { method:'DELETE' });
+      await loadProducts();
       if (state.currentTab === 'requests') await loadRequests();
     } catch (error) {
       alert(error.message);
     }
   }
 
-  async function loadRequests() {
-    if (!panels.requests) return;
+  async function loadUsers(){
+    try {
+      const users = await api('/admin/users');
+      usersTable.innerHTML = '';
+      users.forEach(user => usersTable.appendChild(renderUserRow(user)));
+    } catch (error) {
+      usersTable.innerHTML = `<tr><td colspan="4">${error.message || 'Unable to load users'}</td></tr>`;
+    }
+  }
+
+  function renderUserRow(user){
+    const tr = document.createElement('tr');
+    tr.dataset.id = user.id;
+    tr.innerHTML = `
+      <td>${user.email}</td>
+      <td>
+        <select class="input" data-role>
+          <option value="customer" ${user.role==='customer'?'selected':''}>Customer</option>
+          <option value="editor" ${user.role==='editor'?'selected':''}>Editor</option>
+          <option value="admin" ${user.role==='admin'?'selected':''}>Admin</option>
+        </select>
+      </td>
+      <td>${formatDate(user.created_at)}</td>
+      <td class="request-actions"></td>`;
+    const actions = tr.querySelector('.request-actions');
+
+    const save = document.createElement('button');
+    save.className = 'button ghost';
+    save.textContent = 'Save';
+    save.addEventListener('click', () => updateUser(tr));
+    actions.appendChild(save);
+
+    if (user.id !== state.me?.sub) {
+      const del = document.createElement('button');
+      del.className = 'button ghost';
+      del.textContent = 'Delete';
+      del.addEventListener('click', () => deleteUser(user.id));
+      actions.appendChild(del);
+    } else {
+      const note = document.createElement('span');
+      note.className = 'muted';
+      note.textContent = 'Cannot delete self';
+      actions.appendChild(note);
+    }
+
+    return tr;
+  }
+
+  async function updateUser(row){
+    const id = row.dataset.id;
+    const role = row.querySelector('[data-role]').value;
+    try {
+      await api(`/admin/users/${id}`, { method:'PATCH', body: JSON.stringify({ role }) });
+      await loadUsers();
+    } catch (error) {
+      alert(error.message);
+    }
+  }
+
+  async function deleteUser(id){
+    if (!window.confirm('Delete this user?')) return;
+    try {
+      await api(`/admin/users/${id}`, { method:'DELETE' });
+      await loadUsers();
+    } catch (error) {
+      alert(error.message);
+    }
+  }
+
+  async function loadRequests(){
     try {
       const rows = await Service.adminRequests();
       requestsBody.innerHTML = '';
-      if (!rows || !rows.length) {
+      if (!rows || !rows.length){
         requestsEmpty.classList.remove('hidden');
         return;
       }
       requestsEmpty.classList.add('hidden');
-      rows.forEach((row) => requestsBody.appendChild(renderRequestRow(row)));
+      rows.forEach(row => requestsBody.appendChild(renderRequestRow(row)));
     } catch (error) {
       requestsBody.innerHTML = '';
       requestsEmpty.textContent = error.message || 'Unable to load requests';
@@ -345,24 +451,23 @@
     }
   }
 
-  function renderRequestRow(row) {
+  function renderRequestRow(row){
     const tr = document.createElement('tr');
-    tr.className = status-;
-    tr.innerHTML = 
-      <td></td>
-      <td></td>
-      <td></td>
-      <td></td>
-      <td></td>
-      <td class="request-actions"></td>;
-
+    tr.className = `status-${(row.status || '').toLowerCase()}`;
+    tr.innerHTML = `
+      <td>${formatDate(row.created_at)}</td>
+      <td>${row.service_title}</td>
+      <td>${row.customer_email || ''}</td>
+      <td>${row.status}</td>
+      <td>${row.price_cents != null ? money(row.price_cents) : '-'}</td>
+      <td class="request-actions"></td>`;
     const actions = tr.querySelector('.request-actions');
 
     if (row.status === 'submitted' || row.status === 'quoted') {
       const form = document.createElement('form');
-      form.innerHTML = 
+      form.innerHTML = `
         <input name="price" type="number" min="0" step="1" placeholder="Price (cents)" class="input">
-        <button class="button small">Send Quote</button>;
+        <button class="button small">Send Quote</button>`;
       form.addEventListener('submit', async (event) => {
         event.preventDefault();
         const cents = Number.parseInt(form.price.value || '0', 10);
@@ -386,16 +491,16 @@
 
     if (row.status === 'paid' || row.status === 'delivered') {
       const deliverForm = document.createElement('form');
-      deliverForm.innerHTML = 
+      deliverForm.innerHTML = `
         <input name="label" class="input" placeholder="Deliverable label" required>
         <input name="url" class="input" placeholder="https://file-url" required>
-        <button class="button small">Deliver</button>;
+        <button class="button small">Deliver</button>`;
       deliverForm.addEventListener('submit', async (event) => {
         event.preventDefault();
         const label = deliverForm.label.value.trim();
-        const fileUrl = deliverForm.url.value.trim();
-        if (!label || !fileUrl) return;
-        await Service.deliver(row.id, { label, file_key: fileUrl });
+        const url = deliverForm.url.value.trim();
+        if (!label || !url) return;
+        await Service.deliver(row.id, { label, file_key: url });
         deliverForm.reset();
         await loadRequests();
       });
@@ -405,14 +510,12 @@
     return tr;
   }
 
-  init();
+  function formatDate(date){
+    if (!date) return '—';
+    try { return new Date(date).toLocaleString(); }
+    catch { return date; }
+  }
 </script>
 <script type="module" src="/scripts/nav.js"></script>
 </body></html>
-
-
-
-
-
-
 

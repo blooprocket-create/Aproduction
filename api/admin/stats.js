@@ -7,6 +7,7 @@ export default async function handler(req, res){
   const totals = await query(`
     select
       count(*)::int as users,
+      (select count(*)::int from orders) as orders,
       (select count(*)::int from products where published=true) as published,
       (select coalesce(sum(total_cents),0)::int from orders) as revenue_cents
     from users
