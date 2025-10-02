@@ -1,6 +1,6 @@
-<!doctype html><html lang="en"><head>
+﻿<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Account — A.Production (of sorts)</title>
+<title>Account - A.Production (of sorts)</title>
 <link rel="stylesheet" href="/styles/base.css"><link rel="stylesheet" href="/styles/components.css">
 
 <script defer src="/_vercel/speed-insights/script.js"></script>
@@ -45,20 +45,24 @@
   import { wireNav } from '/scripts/nav.js';
   await wireNav('nav-account');
   const me = await currentUser();
-  if (!me){ location.href='/login.html'; }
-  document.getElementById('me').textContent = `${me.email} — role: ${me.role}`;
+  if (!me) {
+    location.href = '/login.html';
+  }
+  document.getElementById('me').textContent = `${me.email} - role: ${me.role}`;
   const root = document.getElementById('ent');
+  root.innerHTML = '';
   const items = await api('/me/entitlements');
-  (items||[]).forEach(p=>{
+  (items || []).forEach((p) => {
     const wrap = document.createElement('div');
     wrap.className = 'card product';
+    const href = p.kind === 'course' ? `/course.html?id=${p.id}` : `/product.html?id=${p.id}`;
     wrap.innerHTML = `
-      <span class="badge">${(p.kind||'').toUpperCase()}</span>
+      <span class="badge">${(p.kind || '').toUpperCase()}</span>
       <h4>${p.title}</h4>
-      <p class="muted">${p.description||''}</p>
+      <p class="muted">${p.description || ''}</p>
       <div class="row" style="justify-content:space-between;align-items:end">
         <div class="price">${money(p.price_cents)}</div>
-        <a class="button" href="${p.kind==='course'?`/product.html?id=${p.id}`:`/product.html?id=${p.id}`}">Open</a>
+        <a class="button" href="${href}">Open</a>
       </div>
     `;
     root.appendChild(wrap);

@@ -1,14 +1,14 @@
-<!doctype html><html lang="en"><head>
+﻿<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Product — A.Production (of sorts)</title>
+<title>Product - A.Production (of sorts)</title>
 <link rel="stylesheet" href="/styles/base.css"><link rel="stylesheet" href="/styles/components.css">
 <script defer src="/_vercel/speed-insights/script.js"></script>
 <script defer src="/_vercel/insights/script.js"></script>
 <style>
-  .hidden{display:none!important}
-  a.disabled{opacity:.6;pointer-events:none;text-decoration:none}
-  .list{list-style:none;padding:0;margin:0}
-  .list .row{display:flex;align-items:center;padding:6px 0;gap:8px}
+  .hidden { display: none !important; }
+  a.disabled { opacity: .6; pointer-events: none; text-decoration: none; }
+  .list { list-style: none; padding: 0; margin: 0; }
+  .list .row { display: flex; align-items: center; padding: 6px 0; gap: 8px; }
 </style>
 </head><body>
   <div class="container">
@@ -41,116 +41,130 @@
     <div id="content" class="grid">
       <div class="card product" id="detail"></div>
 
-      <!-- Course CTA (desktop) -->
-      <a id="view-course" class="btn secondary hidden">View course</a>
+      <a id="view-course" class="button ghost hidden" style="justify-content:center">View course</a>
 
-      <!-- Desktop Buy -->
       <button class="button desktop-only" id="buy">Buy Now</button>
 
-      <!-- Downloads list (shows if assets defined; links unlock when owned) -->
       <section id="downloads-section" class="card hidden" style="grid-column:1 / -1">
         <h3>Included Downloads</h3>
         <ul id="downloads-list" class="list"></ul>
       </section>
     </div>
 
-
-      <!-- Service quote form (visible only for kind='service') -->
-      <section id="service-form" class="card hidden" style="grid-column:1 / -1">
-        <h3>Request a Quote</h3>
-        <form id="quote">
-          <div class="row"><input name="title" placeholder="Project title (e.g., Landing page redesign)" required></div>
-          <div class="row"><textarea name="details" placeholder="Tell us what you need…" rows="5"></textarea></div>
-          <button class="button" type="submit">Submit request</button>
-        </form>
-        <p id="quote-msg" class="muted"></p>
-      </section>
+    <section id="service-form" class="card hidden" style="grid-column:1 / -1">
+      <h3>Request a Quote</h3>
+      <form id="quote" class="grid" style="gap:12px">
+        <input class="input" name="title" placeholder="Project title (e.g., Landing page redesign)" required>
+        <textarea class="input" name="details" placeholder="Tell us what you need..." rows="5"></textarea>
+        <button class="button" type="submit">Submit request</button>
+      </form>
+      <p id="quote-msg" class="muted" aria-live="polite"></p>
+    </section>
   </div>
 
-  <!-- Sticky Buy bar (mobile) -->
   <div class="buybar mobile-only hidden" id="buybar">
     <div class="row" style="gap:10px"><span id="buybar-title" class="muted"></span></div>
     <div class="row" style="margin-left:auto;gap:10px">
       <div class="price" id="buybar-price"></div>
-      <a id="buybar-course" class="btn secondary hidden">View course</a>
+      <a id="buybar-course" class="button ghost hidden">View course</a>
       <a href="#" class="button" id="buybar-btn">Buy Now</a>
     </div>
   </div>
 
 <script type="module">
-  import { api, money, track } from '/scripts/api.js';
+  import { api, money, track, Service } from '/scripts/api.js';
   import { wireNav } from '/scripts/nav.js';
 
-  // Wire nav correctly on this page
   await wireNav('nav-products');
 
-  // Robust param read
   const qs = new URLSearchParams(location.search);
   const id = qs.get('id');
   if (!id) {
-    document.getElementById('detail').innerHTML = `<h2>Missing product id</h2>`;
+    document.getElementById('detail').innerHTML = '<h2>Missing product id</h2>';
     throw new Error('No product id in querystring');
   }
 
-  // Fetch product (handle either {ok,data} or data)
-  let resp;
-  try {
-    resp = await api('/products/' + id);
-  } catch (e) {
-    console.error('Product load failed:', e);
-    alert(e.message || 'Failed to load product');
-  }
-  const p = (resp && (resp.data ?? resp)) || null;
-  if (!p) {
-    document.getElementById('detail').innerHTML = `<h2>Product not found</h2>`;
-    throw new Error('No product');
-  }
-
-  // Render PDP
-  const d = document.getElementById('detail');
-  d.innerHTML = `
-    <span class="badge">${(p.kind || 'PRODUCT').toUpperCase()}</span>
-    <h1>${p.title}</h1>
-    ${p.subtitle ? `<h3 class="muted">${p.subtitle}</h3>` : ''}
-    <p class="muted">${p.description || ''}</p>
-    <div class="price">${money(p.price_cents)} </div>
-  `;
-
-  // Course buttons
+  const detailEl = document.getElementById('detail');
+  const buyBtn = document.getElementById('buy');
+  const buybar = document.getElementById('buybar');
+  const buybarBtn = document.getElementById('buybar-btn');
+  const buybarTitle = document.getElementById('buybar-title');
+  const buybarPrice = document.getElementById('buybar-price');
   const desktopCourseBtn = document.getElementById('view-course');
-  const mobileCourseBtn  = document.getElementById('buybar-course');
-  const courseHref = `/course.html?id=${p.id}`;
-  if (p.course) {
-    desktopCourseBtn?.classList.remove('hidden');
-    desktopCourseBtn && (desktopCourseBtn.href = courseHref);
-    mobileCourseBtn?.classList.remove('hidden');
-    mobileCourseBtn && (mobileCourseBtn.href = courseHref);
-  } else {
-    desktopCourseBtn?.classList.add('hidden');
-    mobileCourseBtn?.classList.add('hidden');
-  }
-
-  // Downloads (visible if assets declared; link unlock when owned)
+  const mobileCourseBtn = document.getElementById('buybar-course');
   const downloadsSection = document.getElementById('downloads-section');
   const downloadsList = document.getElementById('downloads-list');
-  if (downloadsSection && downloadsList) {
+  const serviceSection = document.getElementById('service-form');
+  const serviceForm = document.getElementById('quote');
+  const serviceMsg = document.getElementById('quote-msg');
+
+  let product = null;
+
+  async function loadProduct() {
+    try {
+      product = await api(`/products/${id}`);
+      renderProduct();
+    } catch (error) {
+      detailEl.innerHTML = `<h2>${error.message || 'Failed to load product'}</h2>`;
+      throw error;
+    }
+  }
+
+  function renderProduct() {
+    if (!product) return;
+
+    detailEl.innerHTML = `
+      <span class="badge">${(product.kind || 'PRODUCT').toUpperCase()}</span>
+      <h1>${product.title}</h1>
+      ${product.subtitle ? `<h3 class="muted">${product.subtitle}</h3>` : ''}
+      <p class="muted">${product.description || ''}</p>
+      <div class="price">${money(product.price_cents)}</div>
+    `;
+
+    renderCourseButtons();
+    renderDownloads();
+    renderPurchaseState();
+    renderServiceForm();
+  }
+
+  function renderCourseButtons() {
+    const hasCourse = !!product?.course;
+    const courseHref = `/course.html?id=${product.id}`;
+    if (hasCourse) {
+      desktopCourseBtn.classList.remove('hidden');
+      desktopCourseBtn.href = courseHref;
+      mobileCourseBtn.classList.remove('hidden');
+      mobileCourseBtn.href = courseHref;
+    } else {
+      desktopCourseBtn.classList.add('hidden');
+      desktopCourseBtn.removeAttribute('href');
+      mobileCourseBtn.classList.add('hidden');
+      mobileCourseBtn.removeAttribute('href');
+    }
+  }
+
+  function renderDownloads() {
     downloadsList.innerHTML = '';
-    (p.assets || []).forEach(a => {
+    const assets = product?.assets || [];
+    if (!assets.length) {
+      downloadsSection.classList.add('hidden');
+      return;
+    }
+
+    assets.forEach((asset) => {
       const li = document.createElement('li');
       li.className = 'row';
-
       const link = document.createElement('a');
-      link.textContent = a.label;
-
-      if (a.file_key) {
-        link.href = `/api/products/${p.id}?asset=${a.id}&download=1`;
+      link.textContent = asset.label;
+      if (asset.file_key) {
+        link.href = `/api/products/${product.id}?asset=${asset.id}&download=1`;
         link.target = '_blank';
         link.rel = 'noopener';
       } else {
         link.href = '#';
         link.classList.add('disabled');
-        link.addEventListener('click', (e) => {
-          e.preventDefault();
+        link.addEventListener('click', (event) => {
+          event.preventDefault();
           alert('Purchase to unlock this download.');
         });
       }
@@ -158,91 +172,92 @@
       downloadsList.appendChild(li);
     });
 
-    if ((p.assets || []).length > 0) downloadsSection.classList.remove('hidden');
+    downloadsSection.classList.remove('hidden');
   }
 
-  // Buy logic
-  const buy = async () => {
-    try {
-      await api('/orders', { method:'POST', body: JSON.stringify({ product_id: id, qty: 1 }) });
-      track('purchase', { id, title: p.title, kind: p.kind, amount: (p.price_cents||0)/100 });
+  function renderPurchaseState() {
+    if (product.kind === 'service') {
+      buyBtn.classList.add('hidden');
+      buybar.classList.add('hidden');
+      return;
+    }
 
-      // Stay on PDP and reveal ownership immediately
-      p.owned = true;
-      // Flip both buttons
-      if (buyBtn) {
-        buyBtn.textContent = 'Owned';
-        buyBtn.disabled = true;
-        buyBtn.classList.add('ghost');
-      }
-      if (buybarBtn) {
-        buybarBtn.textContent = 'Owned';
-        buybarBtn.classList.add('ghost');
-        buybarBtn.href = '/account.html';
-        buybarBtn.onclick = null;
-      }
-      // Unlock downloads
-      (p.assets || []).forEach(a => a.file_key = a.file_key || 'UNLOCKED'); // render refresh below
-      location.reload(); // simplest refresh to pick up entitlement
-    } catch (e) { alert(e.message); }
-  };
+    buyBtn.classList.remove('hidden');
+    buybar.classList.remove('hidden');
 
-  // Desktop buy button
-  const buyBtn = document.getElementById('buy');
-  if (buyBtn) {
-    if (p.owned) {
+    const owned = !!product.owned;
+    buybarTitle.textContent = product.title;
+    buybarPrice.textContent = money(product.price_cents);
+
+    if (owned) {
       buyBtn.textContent = 'Owned';
       buyBtn.disabled = true;
       buyBtn.classList.add('ghost');
-    } else {
-      buyBtn.onclick = buy;
-    }
-  }
+      buyBtn.onclick = null;
 
-  // Mobile buybar
-  const bb = document.getElementById('buybar');
-  const buybarBtn = document.getElementById('buybar-btn');
-  if (bb) {
-    document.getElementById('buybar-title').textContent = p.title;
-    document.getElementById('buybar-price').textContent = money(p.price_cents);
-    if (p.owned) {
       buybarBtn.textContent = 'Owned';
       buybarBtn.classList.add('ghost');
       buybarBtn.href = '/account.html';
       buybarBtn.onclick = null;
     } else {
+      buyBtn.textContent = 'Buy Now';
+      buyBtn.disabled = false;
+      buyBtn.classList.remove('ghost');
+      buyBtn.onclick = handlePurchase;
+
       buybarBtn.textContent = 'Buy Now';
-      buybarBtn.onclick = (e)=>{ e.preventDefault(); buy(); };
+      buybarBtn.classList.remove('ghost');
+      buybarBtn.href = '#';
+      buybarBtn.onclick = (event) => {
+        event.preventDefault();
+        handlePurchase();
+      };
     }
-    bb.classList.remove('hidden');
   }
 
-  // If service → show quote form instead of Buy
-  try {
-    if (p && p.kind === 'service') {
-      const formWrap = document.getElementById('service-form');
-      const form = document.getElementById('quote');
-      const buyBtn = document.getElementById('buy');
-      const buybar = document.getElementById('buybar');
-      buyBtn && buyBtn.classList.add('hidden');
-      buybar && buybar.classList.add('hidden');
-      if (formWrap && form) {
-        formWrap.classList.remove('hidden');
-        form.addEventListener('submit', async (e)=>{
-          e.preventDefault();
-          const fd = new FormData(form);
-          const payload = { service_id: p.id, title: String(fd.get('title')||'').trim(), details: String(fd.get('details')||'').trim() };
-          if (!payload.title) return alert('Please add a title');
-          try{
-            const r = await import('/scripts/api.js');
-            await r.Service.request(payload);
-            document.getElementById('quote-msg').textContent = 'Request submitted. We\'ll email you once it\'s quoted.';
-            form.reset();
-          }catch(err){ alert(err.message || 'Failed to submit request'); }
-        });
-      }
+  function renderServiceForm() {
+    if (product.kind !== 'service') {
+      serviceSection.classList.add('hidden');
+      return;
     }
-  } catch {}
+    serviceSection.classList.remove('hidden');
+    serviceMsg.textContent = '';
+  }
 
+  async function handlePurchase() {
+    try {
+      await api('/orders', { method: 'POST', body: JSON.stringify({ product_id: id, qty: 1 }) });
+      track('purchase', { id, title: product.title, kind: product.kind, amount: (product.price_cents || 0) / 100 });
+      await loadProduct();
+    } catch (error) {
+      alert(error.message || 'Checkout failed');
+    }
+  }
+
+  serviceForm.addEventListener('submit', async (event) => {
+    if (product.kind !== 'service') return;
+    event.preventDefault();
+    serviceMsg.textContent = '';
+    const fd = new FormData(serviceForm);
+    const payload = {
+      service_id: product.id,
+      title: String(fd.get('title') || '').trim(),
+      details: String(fd.get('details') || '').trim()
+    };
+    if (!payload.title) {
+      serviceMsg.textContent = 'Please add a project title.';
+      return;
+    }
+    try {
+      await Service.request(payload);
+      serviceForm.reset();
+      serviceMsg.textContent = 'Request submitted. We will email once it is quoted.';
+    } catch (error) {
+      const errMsg = (error && error.message) || 'Failed to submit request';
+      serviceMsg.textContent = errMsg === 'Unauthorized' ? 'Login to submit a request.' : errMsg;
+    }
+  });
+
+  await loadProduct();
 </script>
 </body></html>

@@ -1,6 +1,6 @@
-<!doctype html><html lang="en"><head>
+﻿<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Products — A.Production (of sorts)</title>
+<title>Products - A.Production (of sorts)</title>
 <link rel="stylesheet" href="/styles/base.css"><link rel="stylesheet" href="/styles/components.css">
 
 <script defer src="/_vercel/speed-insights/script.js"></script>
@@ -37,19 +37,20 @@
     <div class="grid cols-3" id="list"></div>
   </div>
 <script type="module">
-  import { api } from '/scripts/api.js';
+  import { api, money } from '/scripts/api.js';
   import { wireNav } from '/scripts/nav.js';
   await wireNav('nav-products');
   const root = document.getElementById('list');
   const items = await api('/products');
-  (items||[]).forEach(s=>{
+  (items || []).forEach((s) => {
     const a = document.createElement('a');
     a.href = `/product.html?id=${s.id}`;
     a.className = 'card product';
     a.innerHTML = `
-      <span class="badge">${(s.kind||'PRODUCT').toUpperCase()}</span>
+      <span class="badge">${(s.kind || 'PRODUCT').toUpperCase()}</span>
       <h3>${s.title}</h3>
-      <p class="muted">${s.subtitle||s.description||''}</p>
+      <p class="muted">${s.subtitle || s.description || ''}</p>
+      <div class="price">${money(s.price_cents)}</div>
     `;
     root.appendChild(a);
   });

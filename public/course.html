@@ -1,45 +1,97 @@
-<!doctype html><html lang="en"><head>
+﻿<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Course — A.Production (of sorts)</title>
+<title>Course - A.Production (of sorts)</title>
 <link rel="stylesheet" href="/styles/base.css"><link rel="stylesheet" href="/styles/components.css">
 <script defer src="/_vercel/speed-insights/script.js"></script>
 <script defer src="/_vercel/insights/script.js"></script>
+<style>
+  .list { list-style: none; padding: 0; margin: 0; }
+  .list li { padding: 10px 0; border-bottom: 1px solid #1f2030; }
+  .list li:last-child { border-bottom: none; }
+  .list a.disabled { opacity: .6; pointer-events: none; }
+</style>
 </head><body>
   <div class="container">
-    <nav class="nav" id="nav"></nav>
-    <main class="content">
+    <nav class="nav" id="nav">
+      <div class="brand">
+        <span class="logo">
+          <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="g1" x1="0" x2="1"><stop offset="0%" stop-color="#8a7cff"/><stop offset="100%" stop-color="#e45aff"/></linearGradient>
+              <radialGradient id="g2" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#e45aff"/><stop offset="100%" stop-color="#8a7cff"/></radialGradient>
+            </defs>
+            <circle class="ring" cx="20" cy="20" r="14" />
+            <circle class="dot" cx="28" cy="12" r="3"/>
+          </svg>
+        </span>
+        <span class="badge">A.Production</span><span class="muted" style="margin-left:8px">(of sorts)</span>
+      </div>
+      <button class="nav-toggle" id="nav-toggle" aria-label="Menu"></button>
+      <div class="nav-links" id="nav-links">
+        <a href="/index.html" id="nav-home">Home</a>
+        <a href="/services.html" id="nav-services">Services</a>
+        <a href="/products.html" id="nav-products">Products</a>
+        <a href="/account.html" id="nav-account">Account</a>
+        <a href="/control-panel.html" id="nav-control">Control</a>
+        <a href="/login.html" id="nav-login">Login</a>
+        <a href="#" id="nav-logout">Logout</a>
+      </div>
+    </nav>
+    <main class="grid" style="gap:18px">
       <section class="card">
         <h1 id="title">Course</h1>
         <p id="intro" class="muted"></p>
       </section>
       <section class="card">
+        <h3>Lessons</h3>
         <ul id="lessons" class="list"></ul>
       </section>
     </main>
   </div>
 <script type="module">
-import { api } from '/scripts/api.js';
-import '/scripts/nav.js';
+  import { api } from '/scripts/api.js';
+  import { wireNav } from '/scripts/nav.js';
 
-function getParam(name){ const u=new URL(location.href); return u.searchParams.get(name); }
-const productId = getParam('id');
-if (!productId){ document.getElementById('title').textContent = 'Missing course id'; throw new Error('no id'); }
+  await wireNav('nav-products');
 
-const data = await api(`/products/${productId}`);
-document.getElementById('title').textContent = data.title || 'Course';
-document.getElementById('intro').textContent = (data.course && data.course.intro) || '';
+  const productId = new URL(location.href).searchParams.get('id');
+  if (!productId) {
+    document.getElementById('title').textContent = 'Missing course id';
+    throw new Error('Missing course id');
+  }
 
-const ul = document.getElementById('lessons');
-(data.videos||[]).forEach(v => {
-  const li = document.createElement('li');
-  li.className = 'row';
-  const a = document.createElement('a');
-  a.textContent = v.title + (v.free_preview ? ' (preview)' : '');
-  a.href = v.video_url || '#';
-  a.target = '_blank';
-  if (!v.video_url){ a.classList.add('disabled'); a.onclick = (e)=>{ e.preventDefault(); alert('Purchase to unlock this lesson.'); }; }
-  li.appendChild(a);
-  ul.appendChild(li);
-});
+  let data;
+  try {
+    data = await api(`/products/${productId}`);
+  } catch (error) {
+    document.getElementById('title').textContent = error.message || 'Failed to load course';
+    throw error;
+  }
+
+  document.getElementById('title').textContent = data.title || 'Course';
+  document.getElementById('intro').textContent = (data.course && data.course.intro) || '';
+
+  const ul = document.getElementById('lessons');
+  ul.innerHTML = '';
+  (data.videos || []).forEach((video) => {
+    const li = document.createElement('li');
+    const link = document.createElement('a');
+    link.textContent = `${video.title}${video.free_preview ? ' (preview)' : ''}`;
+    if (video.video_url) {
+      link.href = video.video_url;
+      link.target = '_blank';
+      link.rel = 'noopener';
+    } else {
+      link.href = '#';
+      link.classList.add('disabled');
+      link.addEventListener('click', (event) => {
+        event.preventDefault();
+        alert('Purchase to unlock this lesson.');
+      });
+    }
+    li.appendChild(link);
+    ul.appendChild(li);
+  });
 </script>
+<script type="module" src="/scripts/nav.js"></script>
 </body></html>

@@ -1,6 +1,6 @@
-<!doctype html><html><head>
+﻿<!doctype html><html><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Control Panel — A.Production (of sorts)</title>
+<title>Control Panel - A.Production (of sorts)</title>
 <link rel="stylesheet" href="/styles/base.css"><link rel="stylesheet" href="/styles/components.css">
 
 <script defer src="/_vercel/speed-insights/script.js"></script>
@@ -37,9 +37,9 @@
   <div id="who" class="muted"></div>
   <div id="admin" class="grid hidden">
     <div class="metrics" id="metrics">
-      <div class="metric"><h4>Users</h4><div class="val" id="m-users">—</div></div>
-      <div class="metric"><h4>Published</h4><div class="val" id="m-published">—</div></div>
-      <div class="metric"><h4>Revenue</h4><div class="val" id="m-revenue">—</div></div>
+      <div class="metric"><h4>Users</h4><div class="val" id="m-users">-</div></div>
+      <div class="metric"><h4>Published</h4><div class="val" id="m-published">-</div></div>
+      <div class="metric"><h4>Revenue</h4><div class="val" id="m-revenue">-</div></div>
     </div>
     <div class="card"><h3>Create Product/Service</h3>
       <form id="create" class="grid">
@@ -71,86 +71,117 @@
   await wireNav('nav-control');
   const who = document.getElementById('who');
   const admin = document.getElementById('admin');
-  try{
+  try {
     const me = await Auth.me();
-    if (!['admin','editor'].includes(me.role)) { location.href='/'; }
-    who.textContent = `Signed in as ${me.email} — role: ${me.role}`;
+    if (!['admin','editor'].includes(me.role)) { location.href = '/'; }
+    who.textContent = `Signed in as ${me.email} - role: ${me.role}`;
     admin.classList.remove('hidden');
-    if (me.role==='admin'){
-      const s = await api('/admin/stats');
-      document.getElementById('m-users').textContent = Number(s.users||0).toLocaleString();
-      document.getElementById('m-published').textContent = Number(s.published||0).toLocaleString();
-      document.getElementById('m-revenue').textContent = money(Number(s.revenue_cents||0));
+    if (me.role === 'admin') {
+      const stats = await api('/admin/stats');
+      document.getElementById('m-users').textContent = Number(stats.users || 0).toLocaleString();
+      document.getElementById('m-published').textContent = Number(stats.published || 0).toLocaleString();
+      document.getElementById('m-revenue').textContent = money(Number(stats.revenue_cents || 0));
     }
-    document.getElementById('create').onsubmit = async (e)=>{
-      e.preventDefault(); const fd = new FormData(e.target);
+    document.getElementById('create').onsubmit = async (event) => {
+      event.preventDefault();
+      const fd = new FormData(event.target);
       const payload = Object.fromEntries(fd.entries());
       payload.published = !!fd.get('published');
-      payload.price_cents = Math.round(Number(payload.price||0)*100);
+      payload.price_cents = Math.round(Number(payload.price || 0) * 100);
       delete payload.price;
-      const path = payload.kind==='service'?'/services':'/products';
-      try{ await api(path, { method:'POST', body: JSON.stringify(payload) }); e.target.reset(); await loadCatalog(); }
-      catch(err){ alert(err.message); }
+      const path = payload.kind === 'service' ? '/services' : '/products';
+      try {
+        await api(path, { method: 'POST', body: JSON.stringify(payload) });
+        event.target.reset();
+        await loadCatalog();
+      } catch (error) {
+        alert(error.message);
+      }
     };
-    async function loadCatalog(){
-      const [prods, servs] = await Promise.all([ api('/products?all=1'), api('/services?all=1') ]);
-      const rows = [...(prods||[]), ...(servs||[])];
-      const tb = document.querySelector('#catalog tbody');
-      tb.innerHTML = '';
-      rows.forEach(r=> tb.appendChild(makeRow(r)) );
+    async function loadCatalog() {
+      const [products, services] = await Promise.all([api('/products?all=1'), api('/services?all=1')]);
+      const rows = [...(products || []), ...(services || [])];
+      const tbody = document.querySelector('#catalog tbody');
+      tbody.innerHTML = '';
+      rows.forEach((row) => tbody.appendChild(makeRow(row)));
     }
-    function makeRow(r){
+    function makeRow(row) {
       const tr = document.createElement('tr');
-      tr.dataset.id = r.id; tr.dataset.kind = r.kind;
+      tr.dataset.id = row.id;
+      tr.dataset.kind = row.kind;
       tr.innerHTML = `
-        <td>${(r.kind||'').toUpperCase()}</td>
-        <td class="cell" data-field="title">${r.title}</td>
-        <td class="cell" data-field="slug">${r.slug}</td>
-        <td class="cell" data-field="price_cents">${money(r.price_cents)}</td>
-        <td class="cell" data-field="published">${r.published?'Yes':'No'}</td>
-        <td>${r.id.slice(0,8)}…</td>
+        <td>${(row.kind || '').toUpperCase()}</td>
+        <td class="cell" data-field="title">${row.title}</td>
+        <td class="cell" data-field="slug">${row.slug}</td>
+        <td class="cell" data-field="price_cents">${money(row.price_cents)}</td>
+        <td class="cell" data-field="published">${row.published ? 'Yes' : 'No'}</td>
+        <td>${row.id.slice(0, 8)}...</td>
         <td><a href="#" class="pill act-edit">Edit</a></td>`;
-      tr.querySelector('.act-edit').addEventListener('click', (e)=>{ e.preventDefault(); enterEdit(tr, r); });
+      tr.querySelector('.act-edit').addEventListener('click', (event) => {
+        event.preventDefault();
+        enterEdit(tr, row);
+      });
       return tr;
     }
-    function enterEdit(tr, r){
+    function enterEdit(tr, row) {
       const cells = tr.querySelectorAll('.cell');
-      cells.forEach(td=>{
+      cells.forEach((td) => {
         const field = td.dataset.field;
-        if (field==='published'){ td.innerHTML = `<div class="cell-edit"><input type="checkbox" ${r.published?'checked':''}></div>`; }
-        else if (field==='price_cents'){ td.innerHTML = `<div class="cell-edit"><input type="number" min="0" step="0.01" value="${(r.price_cents||0)/100}"></div>`; }
-        else { td.innerHTML = `<div class="cell-edit"><input type="text" value="${r[field]||''}"></div>`; }
+        if (field === 'published') {
+          td.innerHTML = `<div class="cell-edit"><input type="checkbox" ${row.published ? 'checked' : ''}></div>`;
+        } else if (field === 'price_cents') {
+          td.innerHTML = `<div class="cell-edit"><input type="number" min="0" step="0.01" value="${(row.price_cents || 0) / 100}"></div>`;
+        } else {
+          td.innerHTML = `<div class="cell-edit"><input type="text" value="${row[field] || ''}"></div>`;
+        }
       });
       const actions = tr.querySelector('td:last-child');
       actions.innerHTML = `<a href="#" class="pill act-save">Save</a> <a href="#" class="pill act-cancel">Cancel</a>`;
       const save = actions.querySelector('.act-save');
       const cancel = actions.querySelector('.act-cancel');
-      const submit = async ()=>{
+      const submit = async () => {
         const payload = {};
-        tr.querySelectorAll('.cell').forEach(td=>{
+        tr.querySelectorAll('.cell').forEach((td) => {
           const field = td.dataset.field;
           const input = td.querySelector('input');
           if (!input) return;
-          if (field==='price_cents'){ payload[field] = Math.round(Number(input.value||0)*100); }
-          else if (field==='published'){ payload[field] = !!input.checked; }
-          else { payload[field] = input.value; }
+          if (field === 'price_cents') {
+            payload[field] = Math.round(Number(input.value || 0) * 100);
+          } else if (field === 'published') {
+            payload[field] = !!input.checked;
+          } else {
+            payload[field] = input.value;
+          }
         });
-        try{
-          const base = r.kind==='service'? '/services' : '/products';
-          await api(`${base}/${r.id}`, { method:'PATCH', body: JSON.stringify(payload) });
-          const fresh = await api(`${base}/${r.id}`);
-          const newTr = makeRow(fresh);
-          tr.replaceWith(newTr);
-        } catch(err){
-          alert(err.message);
+        try {
+          const base = row.kind === 'service' ? '/services' : '/products';
+          await api(`${base}/${row.id}`, { method: 'PATCH', body: JSON.stringify(payload) });
+          const fresh = await api(`${base}/${row.id}`);
+          const replacement = makeRow(fresh);
+          tr.replaceWith(replacement);
+        } catch (error) {
+          alert(error.message);
         }
       };
-      save.addEventListener('click', (e)=>{ e.preventDefault(); submit(); });
-      cancel.addEventListener('click', (e)=>{ e.preventDefault(); loadCatalog(); });
-      tr.addEventListener('keydown', (e)=>{ if (e.key==='Enter') { e.preventDefault(); submit(); } });
+      save.addEventListener('click', (event) => {
+        event.preventDefault();
+        submit();
+      });
+      cancel.addEventListener('click', (event) => {
+        event.preventDefault();
+        loadCatalog();
+      });
+      tr.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter') {
+          event.preventDefault();
+          submit();
+        }
+      });
     }
     await loadCatalog();
-  }catch(e){ location.href = '/login.html'; }
+  } catch (error) {
+    location.href = '/login.html';
+  }
 </script>
 <script type="module" src="/scripts/nav.js"></script>
 </body></html>

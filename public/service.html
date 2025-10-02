@@ -1,6 +1,6 @@
-<!doctype html><html lang="en"><head>
+﻿<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Service — A.Production (of sorts)</title>
+<title>Service - A.Production (of sorts)</title>
 <link rel="stylesheet" href="/styles/base.css"><link rel="stylesheet" href="/styles/components.css">
 
 <script defer src="/_vercel/speed-insights/script.js"></script>
@@ -35,47 +35,93 @@
     </nav>
     <div id="content" class="grid">
       <div class="card product" id="detail"></div>
-      <button class="button desktop-only" id="buy">Book This</button>
+      <section class="card" id="request-card" style="grid-column:1 / -1">
+        <h3>Request a Quote</h3>
+        <p class="muted">Tell us what you need and the studio will follow up with scope, timeline, and a formal quote.</p>
+        <form id="request-form" class="grid" style="gap:12px">
+          <input class="input" name="title" placeholder="Project title (e.g., Launch-ready marketing site)" required>
+          <textarea class="input" name="details" placeholder="Share goals, must-haves, links to inspo-whatever helps." rows="6"></textarea>
+          <button class="button" type="submit">Submit request</button>
+        </form>
+        <p id="request-msg" class="muted"></p>
+      </section>
+      <button class="button ghost desktop-only" id="scroll-to-form" type="button">Talk to the studio</button>
     </div>
   </div>
   <div class="buybar mobile-only hidden" id="buybar">
     <div class="row" style="gap:10px"><span id="buybar-title" class="muted"></span></div>
     <div class="row" style="margin-left:auto;gap:10px">
       <div class="price" id="buybar-price"></div>
-      <a href="#" class="button" id="buybar-btn">Book This</a>
+      <a href="#request-card" class="button" id="buybar-btn">Request a quote</a>
     </div>
   </div>
 <script type="module">
-  import { api, money, track } from '/scripts/api.js';
+  import { api, money, Service } from '/scripts/api.js';
   import { wireNav } from '/scripts/nav.js';
   await wireNav('nav-services');
-  const id = new URLSearchParams(location.search).get('id');
-  let p = null;
-  try{ p = await api('/products/'+id); }catch(e){ alert(e.message); }
-  if(p){
-    const d = document.getElementById('detail');
-    d.innerHTML = `
-      <span class="badge">${(p.kind||'SERVICE').toUpperCase()}</span>
-      <h1>${p.title}</h1>
-      <p class="muted">${p.description||''}</p>
-      <div class="price">${money(p.price_cents)} </div>
-    `;
-    const buy = async ()=>{
-      try{
-        await api('/orders', { method:'POST', body: JSON.stringify({ product_id: id, qty:1 }) });
-        track('purchase', { id, title: p.title, kind: p.kind, amount: (p.price_cents||0)/100 });
-        location.href='/account.html';
-      } catch(e){ alert(e.message); }
-    };
-    document.getElementById('buy').onclick = buy;
-    const bb = document.getElementById('buybar');
-    if (bb){
-      document.getElementById('buybar-title').textContent = p.title;
-      document.getElementById('buybar-price').textContent = money(p.price_cents);
-      document.getElementById('buybar-btn').onclick = (e)=>{ e.preventDefault(); buy(); };
-      bb.classList.remove('hidden');
-    }
+
+  const search = new URLSearchParams(location.search);
+  const id = search.get('id');
+  if (!id) {
+    document.getElementById('detail').innerHTML = '<h2>Missing service id</h2>';
+    throw new Error('Missing service id');
   }
+
+  let service;
+  try {
+    service = await api(`/products/${id}`);
+  } catch (error) {
+    alert(error.message || 'Failed to load service');
+  }
+
+  if (!service) {
+    document.getElementById('detail').innerHTML = '<h2>Service not found</h2>';
+    throw new Error('Service not found');
+  }
+
+  const detail = document.getElementById('detail');
+  detail.innerHTML = `
+    <span class="badge">${(service.kind || 'SERVICE').toUpperCase()}</span>
+    <h1>${service.title}</h1>
+    <p class="muted">${service.description || ''}</p>
+    <div class="price">Starting at ${money(service.price_cents)}</div>
+  `;
+
+  document.getElementById('buybar-title').textContent = service.title;
+  document.getElementById('buybar-price').textContent = money(service.price_cents);
+  document.getElementById('buybar').classList.remove('hidden');
+
+  const scrollBtn = document.getElementById('scroll-to-form');
+  if (scrollBtn) {
+    scrollBtn.addEventListener('click', () => {
+      document.getElementById('request-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }
+
+  const form = document.getElementById('request-form');
+  const message = document.getElementById('request-msg');
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    message.textContent = '';
+    const fd = new FormData(form);
+    const payload = {
+      service_id: service.id,
+      title: String(fd.get('title') || '').trim(),
+      details: String(fd.get('details') || '').trim()
+    };
+    if (!payload.title) {
+      message.textContent = 'Please add a project title.';
+      return;
+    }
+    try {
+      await Service.request(payload);
+      form.reset();
+      message.textContent = 'Request submitted. Expect a reply shortly.';
+    } catch (error) {
+      const errMsg = (error && error.message) || 'Failed to submit request';
+      message.textContent = errMsg === 'Unauthorized' ? 'Login to submit a request.' : errMsg;
+    }
+  });
 </script>
 <script type="module" src="/scripts/nav.js"></script>
 </body></html>

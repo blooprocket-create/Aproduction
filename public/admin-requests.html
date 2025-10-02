@@ -1,144 +1,145 @@
-<!doctype html><html lang="en"><head>
+﻿<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Service Requests — A.Production (of sorts)</title>
+<title>Service Requests - A.Production (of sorts)</title>
 <link rel="stylesheet" href="/styles/base.css"><link rel="stylesheet" href="/styles/components.css">
-<style>
-  .container { min-height: 100vh; }
-  table { width:100%; border-collapse: collapse; }
-  th,td { padding:8px 10px; border-bottom: 1px solid rgba(255,255,255,.08); text-align:left; }
-  .muted { opacity:.8 }
-  .row-actions { display:flex; gap:8px; flex-wrap: wrap; }
-  pre { background: rgba(255,255,255,.05); padding: 10px; border-radius: 12px; overflow:auto; }
-  .diag { margin: 12px 0; }
-  .small { font-size: .9rem; padding: .4rem .6rem; }
-</style>
+<script defer src="/_vercel/speed-insights/script.js"></script>
+<script defer src="/_vercel/insights/script.js"></script>
 </head><body>
-<div class="container">
-  <nav class="nav" id="nav">
-    <div class="brand"><span class="badge">A.Production</span><span class="muted" style="margin-left:8px">(of sorts)</span></div>
-    <div class="nav-links"><a href="/control-panel.html">Control</a></div>
-  </nav>
-  <main class="content">
-    <h1>Service Requests</h1>
-    <p class="muted">Quote, mark paid, and deliver files.</p>
+  <div class="container">
+    <nav class="nav" id="nav">
+      <div class="brand">
+        <span class="logo">
+          <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="g1" x1="0" x2="1"><stop offset="0%" stop-color="#8a7cff"/><stop offset="100%" stop-color="#e45aff"/></linearGradient>
+              <radialGradient id="g2" cx="50%" cy="50%" r="50%"><stop offset="0%" stop-color="#e45aff"/><stop offset="100%" stop-color="#8a7cff"/></radialGradient>
+            </defs>
+            <circle class="ring" cx="20" cy="20" r="14" />
+            <circle class="dot" cx="28" cy="12" r="3"/>
+          </svg>
+        </span>
+        <span class="badge">A.Production</span><span class="muted" style="margin-left:8px">(of sorts)</span>
+      </div>
+      <button class="nav-toggle" id="nav-toggle" aria-label="Menu"></button>
+      <div class="nav-links" id="nav-links">
+        <a href="/index.html" id="nav-home">Home</a>
+        <a href="/services.html" id="nav-services">Services</a>
+        <a href="/products.html" id="nav-products">Products</a>
+        <a href="/account.html" id="nav-account">Account</a>
+        <a href="/control-panel.html" id="nav-control">Control</a>
+        <a href="/login.html" id="nav-login">Login</a>
+        <a href="#" id="nav-logout">Logout</a>
+      </div>
+    </nav>
+    <main class="card" style="overflow:auto">
+      <h1>Service Requests</h1>
+      <p class="muted">Quote, mark paid, or deliver assets for in-flight client requests.</p>
+      <div class="table-wrap" style="margin-top:18px">
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Created</th>
+              <th>Service</th>
+              <th>Customer</th>
+              <th>Status</th>
+              <th>Quoted</th>
+              <th style="width:320px">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+      <p id="empty" class="muted hidden">No requests yet. Once customers submit a brief you will see it here.</p>
+    </main>
+  </div>
+<script type="module">
+  import { currentUser, Service, money } from '/scripts/api.js';
+  import { wireNav } from '/scripts/nav.js';
 
-    <div class="diag">
-      <h4>Diagnostics</h4>
-      <div>Current user (/api/auth/me):</div>
-      <pre id="who">…</pre>
-      <div>Admin list payload (/api/services?admin=1):</div>
-      <pre id="raw">…</pre>
-      <div id="err" class="muted"></div>
-    </div>
-
-    <table id="tbl">
-      <thead>
-        <tr><th>When</th><th>Service</th><th>Customer</th><th>Status</th><th>Quote</th><th>Actions</th></tr>
-      </thead>
-      <tbody id="rows"></tbody>
-    </table>
-  </main>
-</div>
-
-<script>
-  const money = (c) => new Intl.NumberFormat('en-US',{style:'currency',currency:'USD'}).format((+c||0)/100);
-
-  async function safeJSON(path, init={}){
-    const res = await fetch(path, { credentials:'include', ...init });
-    const text = await res.text();
-    try { return { ok: res.ok, status: res.status, data: JSON.parse(text), text }; }
-    catch { return { ok: res.ok, status: res.status, data: null, text }; }
+  const me = await currentUser();
+  await wireNav('nav-control');
+  if (!me || !['admin','editor'].includes(me.role)) {
+    document.body.innerHTML = '<div class="container"><main class="card"><h2>Forbidden</h2><p class="muted">You need admin or editor access to view service requests.</p></main></div>';
+    throw new Error('forbidden');
   }
 
-  (async function main(){
-    const who = document.getElementById('who');
-    const raw = document.getElementById('raw');
-    const err = document.getElementById('err');
-    const tbody = document.getElementById('rows');
+  const tbody = document.getElementById('rows');
+  const emptyState = document.getElementById('empty');
 
-    const meRes = await safeJSON('/api/auth/me');
-    who.textContent = meRes.text;
-    const me = meRes.data && (meRes.data.data ?? meRes.data);
-    if (!me || !['admin','editor'].includes(me.role)) {
-      document.querySelector('main').innerHTML = '<h2>Forbidden (not admin/editor)</h2><pre>'+who.textContent+'</pre>';
+  async function load() {
+    const rows = await Service.adminRequests();
+    tbody.innerHTML = '';
+    if (!rows.length) {
+      emptyState.classList.remove('hidden');
       return;
     }
+    emptyState.classList.add('hidden');
+    rows.forEach((row) => tbody.appendChild(renderRow(row)));
+  }
 
-    const adminRes = await safeJSON('/api/services?admin=1');
-    raw.textContent = adminRes.text;
+  function renderRow(row) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${new Date(row.created_at).toLocaleString()}</td>
+      <td>${row.service_title}</td>
+      <td>${row.customer_email || ''}</td>
+      <td>${row.status}</td>
+      <td>${row.price_cents != null ? money(row.price_cents) : '-'}</td>
+      <td class="act" style="display:flex;flex-direction:column;gap:8px"></td>`;
 
-    let rows = [];
-    if (adminRes.data) rows = adminRes.data.data ?? adminRes.data;
-    if (!Array.isArray(rows)) rows = [];
+    const act = tr.querySelector('.act');
 
-    function rerender(){
-      tbody.innerHTML='';
-      if (!rows.length){
-        const tr = document.createElement('tr');
-        tr.innerHTML = '<td colspan="6" class="muted">No requests yet.</td>';
-        tbody.appendChild(tr);
-        return;
-      }
-      for (const r of rows){
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td>${r.created_at ? new Date(r.created_at).toLocaleString() : '-'}</td>
-          <td>${r.service_title || '-'}</td>
-          <td>${r.customer_email || '-'}</td>
-          <td>${r.status || '-'}</td>
-          <td>${r.price_cents!=null ? money(r.price_cents) : '-'}</td>
-          <td class="row-actions"></td>`;
-        const act = tr.querySelector('.row-actions');
-
-        if (r.status==='submitted' || r.status==='quoted'){
-          const f = document.createElement('form');
-          f.innerHTML = '<input name="price" type="number" min="0" step="1" placeholder="Price (cents)" style="width:140px"> <button class="button small">Quote</button>';
-          f.onsubmit = async (e)=>{
-            e.preventDefault();
-            const price_cents = parseInt(f.price.value||'0',10);
-            const res = await safeJSON(`/api/services/${r.id}`, { method:'PATCH', headers:{'content-type':'application/json'}, body: JSON.stringify({ op:'quote', request_id: r.id, price_cents }) });
-            if (!res.ok){ err.textContent = res.text; return; }
-            const updated = (res.data && (res.data.data ?? res.data)) || {};
-            Object.assign(r, updated);
-            rerender();
-          };
-          act.appendChild(f);
-        }
-
-        if (r.status==='accepted' || r.status==='quoted'){
-          const b = document.createElement('button');
-          b.className='button small'; b.textContent='Mark Paid';
-          b.onclick = async ()=>{
-            const res = await safeJSON(`/api/services/${r.id}`, { method:'PATCH', headers:{'content-type':'application/json'}, body: JSON.stringify({ op:'paid', request_id: r.id }) });
-            if (!res.ok){ err.textContent = res.text; return; }
-            const updated = (res.data && (res.data.data ?? res.data)) || {};
-            Object.assign(r, updated);
-            rerender();
-          };
-          act.appendChild(b);
-        }
-
-        if (r.status==='paid' || r.status==='delivered'){
-          const f2 = document.createElement('form');
-          f2.innerHTML = '<input name="label" placeholder="Label" required style="width:140px"> <input name="url" placeholder="https://file-url" required style="width:220px"> <button class="button small">Deliver</button>';
-          f2.onsubmit = async (e)=>{
-            e.preventDefault();
-            const label = f2.label.value.trim();
-            const file_key = f2.url.value.trim();
-            const res = await safeJSON(`/api/services/${r.id}`, { method:'PATCH', headers:{'content-type':'application/json'}, body: JSON.stringify({ op:'deliver', request_id: r.id, label, file_key }) });
-            if (!res.ok){ err.textContent = res.text; return; }
-            const updated = (res.data && (res.data.data ?? res.data)) || {};
-            Object.assign(r, updated);
-            rerender();
-          };
-          act.appendChild(f2);
-        }
-
-        tbody.appendChild(tr);
-      }
+    if (row.status === 'submitted' || row.status === 'quoted') {
+      const quoteForm = document.createElement('form');
+      quoteForm.className = 'row';
+      quoteForm.style.gap = '8px';
+      quoteForm.innerHTML = `
+        <input name="price" type="number" min="0" step="1" placeholder="Price (cents)" class="input" style="max-width:140px">
+        <button class="button" style="padding:10px 16px">Send Quote</button>`;
+      quoteForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const cents = Number.parseInt(quoteForm.price.value || '0', 10);
+        await Service.quote(row.id, Math.max(0, cents));
+        await load();
+      });
+      act.appendChild(quoteForm);
     }
 
-    rerender();
-  })();
+    if (row.status === 'accepted' || row.status === 'quoted') {
+      const paidBtn = document.createElement('button');
+      paidBtn.className = 'button ghost';
+      paidBtn.textContent = 'Mark Paid';
+      paidBtn.addEventListener('click', async () => {
+        await Service.markPaid(row.id);
+        await load();
+      });
+      act.appendChild(paidBtn);
+    }
+
+    if (row.status === 'paid' || row.status === 'delivered') {
+      const deliverForm = document.createElement('form');
+      deliverForm.className = 'grid';
+      deliverForm.style.gap = '8px';
+      deliverForm.innerHTML = `
+        <input name="label" class="input" placeholder="Deliverable label" required>
+        <input name="url" class="input" placeholder="https://file-url" required>
+        <button class="button" style="padding:10px 16px">Deliver</button>`;
+      deliverForm.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        const label = deliverForm.label.value.trim();
+        const url = deliverForm.url.value.trim();
+        if (!label || !url) return;
+        await Service.deliver(row.id, { label, file_key: url });
+        deliverForm.reset();
+        await load();
+      });
+      act.appendChild(deliverForm);
+    }
+
+    return tr;
+  }
+
+  await load();
 </script>
+<script type="module" src="/scripts/nav.js"></script>
 </body></html>
