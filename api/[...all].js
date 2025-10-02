@@ -46,7 +46,12 @@ export default async function handler(req, res) {
       const match = pathname.match(route.pattern);
       if (!match) continue;
       const methodHandler = route.methods[req.method];
-      if (!methodHandler) break;
+      if (!methodHandler) {
+        res.statusCode = 405;
+        res.setHeader('content-type', 'application/json');
+        res.end(JSON.stringify({ ok: false, error: 'Method not allowed' }));
+        return;
+      }
       if (route.params) {
         route.params.forEach((name, index) => {
           req.query[name] = match[index + 1];
