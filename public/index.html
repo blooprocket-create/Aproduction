@@ -1,4 +1,4 @@
-<!doctype html><html lang="en"><head>
+ï»¿<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>A.Production (of sorts)</title>
 <link rel="stylesheet" href="/styles/base.css"><link rel="stylesheet" href="/styles/components.css">
@@ -34,45 +34,32 @@
       </div>
     </nav>
 
-    <section class="hero hero-split">
-      <div class="hero-copy">
-        <div class="kicker">High-touch creative studio</div>
-        <h1>Ship premium web experiences without the agency bloat</h1>
-        <p>We build and iterate like a product team, design like an art director, and ship like a startup that hates waiting. Whether it’s a launch-ready marketing site or an evergreen digital product, we keep it fast, dark, and unmistakably yours.</p>
-        <ul class="hero-highlights">
-          <li>Strategy, site architecture, and messaging frameworks</li>
-          <li>Design systems, motion concepts, and polished assets</li>
-          <li>Full-stack implementation on modern hosting</li>
-        </ul>
-        <div class="row hero-actions">
-          <a class="button" href="/services.html">Book the studio</a>
-          <a class="button ghost" href="/products.html">Browse the shop</a>
-        </div>
-        <div class="hero-metrics">
-          <div>
-            <strong>60+ launches</strong>
-            <span class="muted">Brand, product, and service sites shipped since 2021.</span>
-          </div>
-          <div>
-            <strong>< 3 weeks</strong>
-            <span class="muted">Average timeline from kickoff to live site.</span>
-          </div>
-          <div>
-            <strong>92% repeat</strong>
-            <span class="muted">Clients who return for additional products or retainers.</span>
-          </div>
-        </div>
+    <section class="hero">
+      <div class="kicker">High-touch creative studio</div>
+      <h1>Ship premium web experiences without the agency bloat</h1>
+      <p>We build and iterate like a product team, design like an art director, and ship like a startup that hates waiting. Whether itâ€™s a launch-ready marketing site or an evergreen digital product, we keep it fast, dark, and unmistakably yours.</p>
+      <ul class="hero-highlights">
+        <li>Strategy, site architecture, and messaging frameworks</li>
+        <li>Design systems, motion concepts, and polished assets</li>
+        <li>Full-stack implementation on modern hosting</li>
+      </ul>
+      <div class="row hero-actions">
+        <a class="button" href="/services.html">Book the studio</a>
+        <a class="button ghost" href="/products.html">Browse the shop</a>
       </div>
-      <div class="hero-showcase card">
-        <h3>What we remove from your plate</h3>
-        <ul class="list">
-          <li>Positioning workshops that actually produce copy-ready messaging.</li>
-          <li>High-polish design with engineering-ready component libraries.</li>
-          <li>Marketing automations, gated content flows, and analytics wiring.</li>
-          <li>Launch strategy: SEO, pre-launch teasers, and post-launch optimization.</li>
-        </ul>
-        <div class="divider"></div>
-        <p class="muted">Everything rolls into a single notion board, so you always know what’s next.</p>
+      <div class="hero-metrics">
+        <div>
+          <strong>60+ launches</strong>
+          <span class="muted">Brand, product, and service sites shipped since 2021.</span>
+        </div>
+        <div>
+          <strong>< 3 weeks</strong>
+          <span class="muted">Average timeline from kickoff to live site.</span>
+        </div>
+        <div>
+          <strong>92% repeat</strong>
+          <span class="muted">Clients who return for additional products or retainers.</span>
+        </div>
       </div>
     </section>
 
@@ -131,12 +118,12 @@
         <div class="card step">
           <span class="step-number">01</span>
           <h3>Co-create the brief</h3>
-          <p class="muted">We synthesize goals, constraints, and data into a punchy plan. You’ll approve the narrative, sitemap, and success metrics before anything moves to design.</p>
+          <p class="muted">We synthesize goals, constraints, and data into a punchy plan. Youâ€™ll approve the narrative, sitemap, and success metrics before anything moves to design.</p>
         </div>
         <div class="card step">
           <span class="step-number">02</span>
           <h3>Design, prototype, review</h3>
-          <p class="muted">Rapid explorations evolve into design systems, flows, and motion. Interactive prototypes keep feedback tight, and we iterate in public—not in a black box.</p>
+          <p class="muted">Rapid explorations evolve into design systems, flows, and motion. Interactive prototypes keep feedback tight, and we iterate in publicâ€”not in a black box.</p>
         </div>
         <div class="card step">
           <span class="step-number">03</span>
@@ -149,7 +136,7 @@
     <section class="section cta-section">
       <div class="card cta-card">
         <h2>Ready for a site that actually pulls its weight?</h2>
-        <p class="muted">Tell us what you’re building and we’ll map the quickest path to launch—services, courses, digital products, or a bundle tailored to your roadmap.</p>
+        <p class="muted">Tell us what youâ€™re building and weâ€™ll map the quickest path to launchâ€”services, courses, digital products, or a bundle tailored to your roadmap.</p>
         <div class="row">
           <a class="button" href="/services.html">Start a project</a>
           <a class="button ghost" href="mailto:hello@aproduction.studio">Email the team</a>
@@ -206,9 +193,16 @@
 
   try {
     const latest = await api('/products');
-    (latest || []).slice(0, 6).forEach((product) => {
-      featuredRoot.appendChild(buildProductCard(product));
-    });
+    if (latest?.length) {
+      latest.slice(0, 6).forEach((product) => {
+        featuredRoot.appendChild(buildProductCard(product));
+      });
+    } else {
+      const empty = document.createElement('p');
+      empty.className = 'muted';
+      empty.textContent = 'No products yet â€” check back soon.';
+      featuredRoot.appendChild(empty);
+    }
   } catch (error) {
     console.warn('Latest products failed', error);
   }
