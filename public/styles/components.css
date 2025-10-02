@@ -1,4 +1,4 @@
-.product{display:flex;flex-direction:column;gap:12px;position:relative}
+﻿.product{display:flex;flex-direction:column;gap:12px;position:relative}
 .product .badge{align-self:flex-start;border:1px solid #26293b;background:#161824;color:#c8c9d0}
 .product h3{margin:4px 0 0 0;font-weight:800;letter-spacing:.2px}
 .product p{margin:6px 0 0 0}
@@ -23,3 +23,37 @@
 .card.downloads a { color: #cdb4ff; }
 .card .list a:hover { text-decoration: underline; }
 .buybar .button.ghost { opacity: .6; }
+
+.request-card{transition:box-shadow .2s ease, border-color .2s ease;cursor:pointer;}
+.request-card.status-submitted{border:1px solid #2a2d3f;background:rgba(42,45,63,.45);}
+.request-card.status-quoted{border:1px solid rgba(255,176,32,.45);background:rgba(255,176,32,.12);}
+.request-card.status-accepted{border:1px solid rgba(138,124,255,.5);background:rgba(138,124,255,.12);}
+.request-card.status-paid{border:1px solid rgba(41,211,145,.55);background:rgba(41,211,145,.12);}
+.request-card.status-delivered{border:1px solid rgba(41,211,145,.7);background:rgba(41,211,145,.16);}
+.request-card.status-declined{border:1px solid rgba(255,90,122,.55);background:rgba(255,90,122,.14);}
+.request-card .badge{font-size:.75rem;letter-spacing:.08em;}
+
+.requests-table tr[class*='status-'] td{transition:background .2s ease;}
+.requests-table tr.status-quoted{background:rgba(255,176,32,.08);}
+.requests-table tr.status-accepted{background:rgba(138,124,255,.08);}
+.requests-table tr.status-paid{background:rgba(41,211,145,.08);}
+.requests-table tr.status-delivered{background:rgba(41,211,145,.12);}
+.requests-table tr.status-declined{background:rgba(255,90,122,.12);}
+
+.request-detail{display:flex;flex-direction:column;gap:24px;}
+.request-detail header{display:flex;flex-direction:column;gap:8px;}
+.request-meta{display:flex;flex-wrap:wrap;gap:24px;}
+.request-meta div{display:flex;flex-direction:column;gap:4px;font-size:.9rem;}
+.request-meta span{color:var(--muted);}
+.request-actions{display:flex;flex-wrap:wrap;gap:12px;}
+.request-detail.status-quoted{border-left:3px solid rgba(255,176,32,.6);padding-left:18px;}
+.request-detail.status-accepted{border-left:3px solid rgba(138,124,255,.6);padding-left:18px;}
+.request-detail.status-paid{border-left:3px solid rgba(41,211,145,.6);padding-left:18px;}
+.request-detail.status-delivered{border-left:3px solid rgba(41,211,145,.8);padding-left:18px;}
+.request-detail.status-declined{border-left:3px solid rgba(255,90,122,.6);padding-left:18px;}
+.request-detail .list{margin-top:12px;}
+
+
+.request-card:focus-visible{outline:2px solid var(--brand);outline-offset:4px;}
+
+

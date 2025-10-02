@@ -1,4 +1,4 @@
-const API = '/api';
+﻿const API = '/api';
 export async function api(path, opts={}){
   const init = { credentials:'include', headers:{ 'content-type':'application/json' }, ...opts };
   const r = await fetch(`${API}${path}`, init);
@@ -25,15 +25,20 @@ export function track(name, data={}){
 
 // --- Service helpers (appended by patch 19) ---
 export const Service = {
-  list: (params='') => api('/services' + params),
+  list: (params="") => api('/services' + params),
   request: ({ service_id, title, details }) =>
     api('/services', { method:'POST', body: JSON.stringify({ op:'request', service_id, title, details }) }),
   myRequests: () => api('/services?mine=1'),
   adminRequests: () => api('/services?admin=1'),
+  detail: (id) => api(`/services/${id}`),
   quote: (request_id, price_cents) =>
     api(`/services/${request_id}`, { method:'PATCH', body: JSON.stringify({ op:'quote', request_id, price_cents }) }),
   accept: (request_id) =>
     api(`/services/${request_id}`, { method:'PATCH', body: JSON.stringify({ op:'accept', request_id }) }),
+  decline: (request_id) =>
+    api(`/services/${request_id}`, { method:'PATCH', body: JSON.stringify({ op:'decline', request_id }) }),
+  pay: (request_id) =>
+    api(`/services/${request_id}`, { method:'PATCH', body: JSON.stringify({ op:'pay', request_id }) }),
   markPaid: (request_id) =>
     api(`/services/${request_id}`, { method:'PATCH', body: JSON.stringify({ op:'paid', request_id }) }),
   deliver: (request_id, { label, file_key, mime_type, bytes }) =>
@@ -41,3 +46,6 @@ export const Service = {
   message: (request_id, bodyText) =>
     api(`/services/${request_id}`, { method:'POST', body: JSON.stringify({ op:'message', request_id, body: bodyText }) }),
 };
+
+
+

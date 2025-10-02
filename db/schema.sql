@@ -1,4 +1,4 @@
-create extension if not exists pgcrypto;
+﻿create extension if not exists pgcrypto;
 
 create table if not exists users (
   id uuid primary key default gen_random_uuid(),
@@ -91,7 +91,7 @@ create table if not exists service_requests (
   title text not null,
   details text,
   price_cents int check (price_cents is null or price_cents >= 0),
-  status text not null default 'submitted' check (status in ('submitted','quoted','accepted','paid','delivered')),
+  status text not null default 'submitted' check (status in ('submitted','quoted','accepted','paid','delivered','declined')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
@@ -120,3 +120,4 @@ create table if not exists service_deliverables (
 );
 
 create index if not exists service_deliverables_request_idx on service_deliverables(request_id, created_at);
+

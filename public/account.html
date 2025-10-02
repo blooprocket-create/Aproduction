@@ -45,70 +45,360 @@
       <p id="requests-empty" class="muted hidden">No service requests yet.</p>
     </div>
   </div>
+  <div id="request-modal" class="modal">
+    <div class="modal-card">
+      <button class="modal-close" aria-label="Close">&times;</button>
+      <div id="request-detail"></div>
+    </div>
+  </div>
 <script type="module">
   import { currentUser, api, money, Service } from '/scripts/api.js';
   import { wireNav } from '/scripts/nav.js';
 
   await wireNav('nav-account');
 
-  const me = await currentUser();
-  if (!me) {
-    location.href = '/login.html';
-  }
-
-  document.getElementById('me').textContent = `${me.email} - role: ${me.role}`;
+  const state = {
+    me: null,
+    requests: [],
+    currentRequestId: null,
+  };
 
   const entRoot = document.getElementById('ent');
-  entRoot.innerHTML = '';
-  const entitlements = await api('/me/entitlements');
-  (entitlements || []).forEach((p) => {
-    const wrap = document.createElement('div');
-    wrap.className = 'card product';
-    const href = p.kind === 'service' ? `/service.html?id=${p.id}` : `/product.html?id=${p.id}`;
-    wrap.innerHTML = `
-      <span class="badge">${(p.kind || '').toUpperCase()}</span>
-      <h4>${p.title}</h4>
-      <p class="muted">${p.description || ''}</p>
-      <div class="row" style="justify-content:space-between;align-items:end">
-        <div class="price">${money(p.price_cents)}</div>
-        <a class="button" href="${href}">Open</a>
-      </div>
-    `;
-    entRoot.appendChild(wrap);
-  });
-
   const requestsList = document.getElementById('requests-list');
   const requestsEmpty = document.getElementById('requests-empty');
-  requestsList.innerHTML = '';
-  requestsList.classList.add('hidden');
+  const modal = document.getElementById('request-modal');
+  const modalBody = document.getElementById('request-detail');
+  const modalClose = modal.querySelector('.modal-close');
 
-  try {
-    const requests = await Service.myRequests();
-    if (!requests || requests.length === 0) {
-      requestsEmpty.classList.remove('hidden');
-    } else {
-      requestsEmpty.classList.add('hidden');
-      requestsList.classList.remove('hidden');
-      requests.forEach((req) => {
-        const card = document.createElement('div');
-        card.className = 'card product';
-        const href = `/service.html?id=${req.service_id}`;
-        card.innerHTML = `
-          <span class="badge">${(req.status || '').toUpperCase()}</span>
-          <h4>${req.service_title || req.title}</h4>
-          <p class="muted">${req.title}</p>
+  modalClose.addEventListener('click', closeModal);
+  modal.addEventListener('click', (event) => {
+    if (event.target === modal) closeModal();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && modal.classList.contains('open')) closeModal();
+  });
+
+  init();
+
+  async function init(){
+    state.me = await currentUser();
+    if (!state.me) {
+      location.href = '/login.html';
+      return;
+    }
+
+    document.getElementById('me').textContent = `${state.me.email} - role: ${state.me.role}`;
+    await loadEntitlements();
+    await loadRequests();
+  }
+
+  async function loadEntitlements(){
+    entRoot.innerHTML = '';
+    try {
+      const entitlements = await api('/me/entitlements');
+      (entitlements || []).forEach((p) => {
+        const wrap = document.createElement('div');
+        wrap.className = 'card product';
+        const href = p.kind === 'service' ? `/service.html?id=${p.id}` : `/product.html?id=${p.id}`;
+        wrap.innerHTML = `
+          <span class="badge">${(p.kind || '').toUpperCase()}</span>
+          <h4>${p.title}</h4>
+          <p class="muted">${p.description || ''}</p>
           <div class="row" style="justify-content:space-between;align-items:end">
-            <div class="price">${req.price_cents != null ? money(req.price_cents) : '—'}</div>
-            <a class="button ghost" href="${href}">View service</a>
+            <div class="price">${money(p.price_cents)}</div>
+            <a class="button" href="${href}">Open</a>
           </div>
         `;
-        requestsList.appendChild(card);
+        entRoot.appendChild(wrap);
       });
+    } catch (error) {
+      const msg = document.createElement('p');
+      msg.className = 'muted';
+      msg.textContent = error.message || 'Unable to load purchases.';
+      entRoot.appendChild(msg);
     }
-  } catch (error) {
-    requestsEmpty.textContent = error.message || 'Unable to load requests.';
-    requestsEmpty.classList.remove('hidden');
+  }
+
+  async function loadRequests(){
+    try {
+      state.requests = await Service.myRequests();
+      requestsEmpty.textContent = 'No service requests yet.';
+    } catch (error) {
+      state.requests = [];
+      requestsEmpty.textContent = error.message || 'Unable to load requests.';
+    }
+    renderRequests();
+  }
+
+  function renderRequests(){
+    requestsList.innerHTML = '';
+    if (!state.requests.length){
+      requestsList.classList.add('hidden');
+      requestsEmpty.classList.remove('hidden');
+      return;
+    }
+    requestsEmpty.classList.add('hidden');
+    requestsList.classList.remove('hidden');
+    state.requests.forEach((req) => {
+      const card = document.createElement('div');
+      card.className = `card product request-card ${statusClass(req.status)}`;
+      card.setAttribute('role', 'button');
+      card.tabIndex = 0;
+      card.innerHTML = `
+        <span class="badge">${formatStatus(req.status)}</span>
+        <h4>${req.service_title || req.title}</h4>
+        <p class="muted">${req.title}</p>
+        <div class="row" style="justify-content:space-between;align-items:end">
+          <div class="price">${req.price_cents != null ? money(req.price_cents) : '—'}</div>
+          <span class="muted">View details &rarr;</span>
+        </div>
+      `;
+      card.addEventListener('click', () => openRequest(req.id));
+      card.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          openRequest(req.id);
+        }
+      });
+      requestsList.appendChild(card);
+    });
+  }
+
+  async function openRequest(requestId){
+    state.currentRequestId = requestId;
+    modalBody.innerHTML = '<p class="muted">Loading request&hellip;</p>';
+    openModal();
+    try {
+      await loadRequestDetail(requestId);
+    } catch (error) {
+      modalBody.innerHTML = `<p class="muted">${error.message || 'Unable to load request.'}</p>`;
+    }
+  }
+
+  async function loadRequestDetail(requestId){
+    const detail = await Service.detail(requestId);
+    renderRequestDetail(detail);
+  }
+
+  function renderRequestDetail(detail){
+    const statusClassName = statusClass(detail.status);
+    const statusLabel = formatStatus(detail.status);
+    const quoteText = detail.price_cents != null ? money(detail.price_cents) : 'Pending';
+
+    modalBody.innerHTML = `
+      <div class="request-detail ${statusClassName}">
+        <header>
+          <span class="badge">${statusLabel}</span>
+          <h2>${detail.service_title || detail.title}</h2>
+          <p class="muted">${detail.title}</p>
+        </header>
+        <section class="request-meta">
+          <div><strong>Submitted</strong><span>${formatDate(detail.created_at)}</span></div>
+          <div><strong>Quote</strong><span>${quoteText}</span></div>
+        </section>
+        <section>
+          <h4>Project brief</h4>
+          <p class="muted">${detail.details || 'No additional details provided.'}</p>
+        </section>
+        <section class="request-actions"></section>
+        <section>
+          <h4>Timeline</h4>
+          <ul class="timeline" id="request-timeline"></ul>
+        </section>
+        <section id="request-deliverables"></section>
+      </div>
+    `;
+
+    renderRequestActions(detail);
+    renderTimeline(detail);
+    renderDeliverables(detail);
+  }
+
+  function renderRequestActions(detail){
+    const container = modalBody.querySelector('.request-actions');
+    container.innerHTML = '';
+    container.className = 'request-actions row';
+    const status = (detail.status || '').toLowerCase();
+
+    const actionButtons = [];
+    if (status === 'quoted'){
+      actionButtons.push(createActionButton('Accept quote', () => handleAction('accept', detail.id)));
+      actionButtons.push(createActionButton('Decline', () => handleAction('decline', detail.id), true));
+    } else if (status === 'accepted'){
+      actionButtons.push(createActionButton('Mark as paid', () => handleAction('pay', detail.id)));
+      const note = document.createElement('p');
+      note.className = 'muted';
+      note.textContent = 'Once paid, the studio will mark the request as paid and start delivery.';
+      container.appendChild(note);
+    } else {
+      const message = messageByStatus(status);
+      if (message) {
+        const note = document.createElement('p');
+        note.className = 'muted';
+        note.textContent = message;
+        container.appendChild(note);
+      }
+    }
+
+    actionButtons.forEach((btn) => container.appendChild(btn));
+  }
+
+  function createActionButton(label, handler, ghost = false){
+    const btn = document.createElement('button');
+    btn.className = ghost ? 'button ghost' : 'button';
+    btn.textContent = label;
+    btn.addEventListener('click', async (event) => {
+      event.preventDefault();
+      btn.disabled = true;
+      try {
+        await handler();
+      } catch (error) {
+        alert(error.message);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+    return btn;
+  }
+
+  async function handleAction(type, requestId){
+    try {
+      if (type === 'accept') await Service.accept(requestId);
+      if (type === 'decline') await Service.decline(requestId);
+      if (type === 'pay') await Service.pay(requestId);
+      await loadRequests();
+      await loadRequestDetail(requestId);
+    } catch (error) {
+      alert(error.message);
+    }
+  }
+
+  function renderTimeline(detail){
+    const list = modalBody.querySelector('#request-timeline');
+    list.innerHTML = '';
+    const events = [];
+    events.push({ title: 'Request submitted', date: detail.created_at, body: detail.details || 'Project brief provided.' });
+    if (detail.price_cents != null) {
+      const quoteDate = detail.status && detail.status.toLowerCase() === 'quoted' ? detail.updated_at : null;
+      events.push({ title: 'Quote prepared', date: quoteDate, body: money(detail.price_cents) });
+    }
+    (detail.messages || []).forEach((msg) => {
+      events.push({
+        title: msg.author_id === state.me?.sub ? 'You' : 'Studio',
+        date: msg.created_at,
+        body: msg.body,
+      });
+    });
+    (detail.deliverables || []).forEach((item) => {
+      events.push({ title: `Deliverable: ${item.label}`, date: item.created_at, body: 'Available in the deliverables section.' });
+    });
+    const finalStatus = (detail.status || '').toLowerCase();
+    if (finalStatus === 'accepted') events.push({ title: 'Quote accepted', date: detail.updated_at, body: 'You accepted the quote.' });
+    if (finalStatus === 'declined') events.push({ title: 'Quote declined', date: detail.updated_at, body: 'You declined the quote.' });
+    if (finalStatus === 'paid') events.push({ title: 'Payment recorded', date: detail.updated_at, body: 'Marked as paid.' });
+    if (finalStatus === 'delivered') events.push({ title: 'Deliverables sent', date: detail.updated_at, body: 'Final assets are available below.' });
+
+    if (!events.length) {
+      const empty = document.createElement('li');
+      empty.innerHTML = '<p class="muted">No activity yet.</p>';
+      list.appendChild(empty);
+      return;
+    }
+
+    events.forEach((event) => {
+      const li = document.createElement('li');
+      li.innerHTML = `
+        <h4>${event.title}</h4>
+        <small class="muted">${formatDate(event.date)}</small>
+        <p>${event.body}</p>
+      `;
+      list.appendChild(li);
+    });
+  }
+
+  function renderDeliverables(detail){
+    const wrap = modalBody.querySelector('#request-deliverables');
+    wrap.innerHTML = '<h4>Deliverables</h4>';
+    const items = detail.deliverables || [];
+    if (!items.length){
+      const p = document.createElement('p');
+      p.className = 'muted';
+      p.textContent = 'Nothing has been delivered yet.';
+      wrap.appendChild(p);
+      return;
+    }
+    const list = document.createElement('ul');
+    list.className = 'list';
+    items.forEach((item) => {
+      const li = document.createElement('li');
+      li.className = 'row';
+      const link = document.createElement('a');
+      link.href = item.file_key;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.className = 'pill';
+      link.textContent = item.label;
+      li.appendChild(link);
+      list.appendChild(li);
+    });
+    wrap.appendChild(list);
+  }
+
+  function openModal(){ modal.classList.add('open'); }
+  function closeModal(){
+    modal.classList.remove('open');
+    modalBody.innerHTML = '';
+    state.currentRequestId = null;
+  }
+
+  function formatStatus(status){
+    if (!status) return 'Pending';
+    return status.replace(/_/g, ' ').replace(/(^|\s)([a-z])/g, (_, space, char) => `${space}${char.toUpperCase()}`);
+  }
+
+  function statusClass(status){
+    return `status-${(status || 'submitted').toLowerCase()}`;
+  }
+
+  function formatDate(date){
+    if (!date) return '—';
+    try {
+      return new Date(date).toLocaleString();
+    } catch {
+      return date;
+    }
+  }
+
+  function messageByStatus(status){
+    switch (status) {
+      case 'submitted':
+        return 'We will review your request shortly.';
+      case 'paid':
+        return 'Thanks! The studio has been notified of your payment.';
+      case 'delivered':
+        return 'Deliverables are available below.';
+      case 'declined':
+        return 'You declined this quote. Reach out if you need changes.';
+      default:
+        return '';
+    }
   }
 </script>
 <script type="module" src="/scripts/nav.js"></script>
 </body></html>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
