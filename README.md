@@ -15,4 +15,6 @@ Dark, sleek storefront for services, courses, and downloads. Vanilla HTML/CSS/JS
 - Keep visuals minimal and classy via `styles/base.css`.
 - Service requests, deliverables, and course content depend on the new tables in `db/schema.sql` - re-run migrations if you pulled an older clone.
 
-Currently: Stable-ish
+Currently: Stable
+
+Issues: Can not edit/save/delete/add products at the moment in the control panel
