@@ -1,4 +1,4 @@
-ï»¿<!doctype html><html lang="en"><head>
+<!doctype html><html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>A.Production (of sorts)</title>
 <link rel="stylesheet" href="/styles/base.css"><link rel="stylesheet" href="/styles/components.css">
@@ -33,37 +33,186 @@
         <a href="#" id="nav-logout">Logout</a>
       </div>
     </nav>
-    <section class="hero">
-      <div class="kicker">Studio, but make it useful</div>
-      <h1>Websites that look expensive <span class="muted">(because they are)</span></h1>
-      <p>Premium builds and pragmatic courses - crafted with taste, shipped with pace. Sleek. Dark. A little cheeky.</p>
-      <div class="row" style="margin-top:20px">
-        <a class="button" href="/services.html">Hire the studio</a>
-        <a class="button ghost" href="/products.html">Browse the goodies</a>
+
+    <section class="hero hero-split">
+      <div class="hero-copy">
+        <div class="kicker">High-touch creative studio</div>
+        <h1>Ship premium web experiences without the agency bloat</h1>
+        <p>We build and iterate like a product team, design like an art director, and ship like a startup that hates waiting. Whether it’s a launch-ready marketing site or an evergreen digital product, we keep it fast, dark, and unmistakably yours.</p>
+        <ul class="hero-highlights">
+          <li>Strategy, site architecture, and messaging frameworks</li>
+          <li>Design systems, motion concepts, and polished assets</li>
+          <li>Full-stack implementation on modern hosting</li>
+        </ul>
+        <div class="row hero-actions">
+          <a class="button" href="/services.html">Book the studio</a>
+          <a class="button ghost" href="/products.html">Browse the shop</a>
+        </div>
+        <div class="hero-metrics">
+          <div>
+            <strong>60+ launches</strong>
+            <span class="muted">Brand, product, and service sites shipped since 2021.</span>
+          </div>
+          <div>
+            <strong>< 3 weeks</strong>
+            <span class="muted">Average timeline from kickoff to live site.</span>
+          </div>
+          <div>
+            <strong>92% repeat</strong>
+            <span class="muted">Clients who return for additional products or retainers.</span>
+          </div>
+        </div>
+      </div>
+      <div class="hero-showcase card">
+        <h3>What we remove from your plate</h3>
+        <ul class="list">
+          <li>Positioning workshops that actually produce copy-ready messaging.</li>
+          <li>High-polish design with engineering-ready component libraries.</li>
+          <li>Marketing automations, gated content flows, and analytics wiring.</li>
+          <li>Launch strategy: SEO, pre-launch teasers, and post-launch optimization.</li>
+        </ul>
+        <div class="divider"></div>
+        <p class="muted">Everything rolls into a single notion board, so you always know what’s next.</p>
       </div>
     </section>
-    <section class="grid cols-3" id="featured"></section>
+
+    <section class="section" id="best">
+      <div class="section-head">
+        <div>
+          <h2>Best sellers right now</h2>
+          <p class="muted">Real client demand, updated automatically as orders roll in.</p>
+        </div>
+      </div>
+      <div class="best-grid" id="best-grid"></div>
+    </section>
+
+    <section class="section" id="recent">
+      <div class="section-head">
+        <div>
+          <h2>Fresh from the studio</h2>
+          <p class="muted">New releases, experiments, and limited-run offers.</p>
+        </div>
+        <a class="button ghost" href="/products.html">View full catalog</a>
+      </div>
+      <div class="grid cols-3" id="featured"></div>
+    </section>
+
+    <section class="section" id="services-preview">
+      <div class="section-head">
+        <div>
+          <h2>Where we bend the curve</h2>
+          <p class="muted">We combine strategy, design, and engineering into one tight feedback loop.</p>
+        </div>
+      </div>
+      <div class="grid cols-3 feature-grid">
+        <div class="card feature">
+          <h3>Brand & story</h3>
+          <p class="muted">Pull the thread on your positioning, tone, and point of view so every page feels inevitable. Messaging frameworks, narrative arcs, and voice guides included.</p>
+        </div>
+        <div class="card feature">
+          <h3>High-impact design</h3>
+          <p class="muted">Dark, cinematic visuals with purposeful motion and component libraries. We deliver Figma, tokens, and dev-ready specs so nothing is lost in translation.</p>
+        </div>
+        <div class="card feature">
+          <h3>Build & launch</h3>
+          <p class="muted">Production code on modern hosting, analytics, and optimization baked in. Our stack keeps performance tight and makes iteration feel effortless.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="process">
+      <div class="section-head">
+        <div>
+          <h2>The play-by-play</h2>
+          <p class="muted">A transparent, collaborative workflow that keeps momentum high.</p>
+        </div>
+      </div>
+      <div class="grid cols-3 numbered-grid">
+        <div class="card step">
+          <span class="step-number">01</span>
+          <h3>Co-create the brief</h3>
+          <p class="muted">We synthesize goals, constraints, and data into a punchy plan. You’ll approve the narrative, sitemap, and success metrics before anything moves to design.</p>
+        </div>
+        <div class="card step">
+          <span class="step-number">02</span>
+          <h3>Design, prototype, review</h3>
+          <p class="muted">Rapid explorations evolve into design systems, flows, and motion. Interactive prototypes keep feedback tight, and we iterate in public—not in a black box.</p>
+        </div>
+        <div class="card step">
+          <span class="step-number">03</span>
+          <h3>Build, launch, optimize</h3>
+          <p class="muted">We ship production code, wire analytics, and run heatmap-informed tweaks. Post-launch support ensures the momentum keeps going long after handoff.</p>
+        </div>
+      </div>
+    </section>
+
+    <section class="section cta-section">
+      <div class="card cta-card">
+        <h2>Ready for a site that actually pulls its weight?</h2>
+        <p class="muted">Tell us what you’re building and we’ll map the quickest path to launch—services, courses, digital products, or a bundle tailored to your roadmap.</p>
+        <div class="row">
+          <a class="button" href="/services.html">Start a project</a>
+          <a class="button ghost" href="mailto:hello@aproduction.studio">Email the team</a>
+        </div>
+      </div>
+    </section>
+
     <footer class="footer">&copy; <span id="y"></span> A.Production (of sorts). All rights reserved.</footer>
   </div>
 <script type="module">
   import { api, money } from '/scripts/api.js';
   import { wireNav } from '/scripts/nav.js';
+
   await wireNav('nav-home');
-  const root = document.getElementById('featured');
-  let items = [];
-  try { items = await api('/products'); } catch (e) { console.warn(e); }
-  (items || []).slice(0, 6).forEach((p) => {
-    const a = document.createElement('a');
-    a.href = p.kind === 'service' ? `/service.html?id=${p.id}` : `/product.html?id=${p.id}`;
-    a.className = 'card product';
-    a.innerHTML = `
-      <span class="badge">${(p.kind || 'PRODUCT').toUpperCase()}</span>
-      <h3>${p.title}</h3>
-      <p class="muted">${p.subtitle || p.description || ''}</p>
-      <div class="price">${money(p.price_cents)}</div>
+
+  const bestRoot = document.getElementById('best-grid');
+  const featuredRoot = document.getElementById('featured');
+
+  function productLink(p){
+    return p.kind === 'service' ? `/service.html?id=${p.id}` : `/product.html?id=${p.id}`;
+  }
+
+  function buildProductCard(product, { ribbon } = {}){
+    const card = document.createElement('a');
+    card.href = productLink(product);
+    card.className = 'card product' + (ribbon ? ' has-ribbon' : '');
+    card.innerHTML = `
+      ${ribbon ? `<span class="ribbon">${ribbon}</span>` : ''}
+      <span class="badge">${(product.kind || 'product').toUpperCase()}</span>
+      <h3>${product.title}</h3>
+      <p class="muted">${product.subtitle || product.description || ''}</p>
+      <div class="price">${money(product.price_cents)}</div>
+      ${product.units_sold != null ? `<p class="muted small">Sold ${product.units_sold} ${product.units_sold === 1 ? 'time' : 'times'}</p>` : ''}
     `;
-    root.appendChild(a);
-  });
+    return card;
+  }
+
+  try {
+    const best = await api('/products?best=1');
+    if (bestRoot && best?.length) {
+      best.forEach((product, index) => {
+        const ribbon = index === 0 ? 'Best seller' : `#${index + 1}`;
+        bestRoot.appendChild(buildProductCard(product, { ribbon }));
+      });
+    } else if (bestRoot) {
+      const empty = document.createElement('p');
+      empty.className = 'muted';
+      empty.textContent = 'No sales yet, but the lineup is ready for you.';
+      bestRoot.appendChild(empty);
+    }
+  } catch (error) {
+    console.warn('Best sellers failed', error);
+  }
+
+  try {
+    const latest = await api('/products');
+    (latest || []).slice(0, 6).forEach((product) => {
+      featuredRoot.appendChild(buildProductCard(product));
+    });
+  } catch (error) {
+    console.warn('Latest products failed', error);
+  }
+
   document.getElementById('y').textContent = new Date().getFullYear();
 </script>
 <script type="module" src="/scripts/nav.js"></script>
