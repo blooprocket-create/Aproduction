@@ -1,4 +1,4 @@
-import authLogin from '../lib/api/auth/login.js';
+﻿import authLogin from '../lib/api/auth/login.js';
 import authRegister from '../lib/api/auth/register.js';
 import authLogout from '../lib/api/auth/logout.js';
 import authMe from '../lib/api/auth/me.js';
@@ -36,8 +36,41 @@ const routes = [
   { pattern: /^\/api\/admin\/users\/([^\/]+)$/, methods: { PATCH: adminUserDetail, DELETE: adminUserDetail }, params: ['id'] },
 ];
 
+export const config = {
+  api: {
+    bodyParser: false,
+  },
+};
+
+async function ensureBody(req) {
+  if (req.body !== undefined) return;
+  const chunks = [];
+  for await (const chunk of req) {
+    chunks.push(Buffer.from(chunk));
+  }
+  if (!chunks.length) {
+    req.body = req.headers['content-type']?.includes('application/json') ? {} : '';
+    return;
+  }
+  const raw = Buffer.concat(chunks).toString();
+  if (!raw) {
+    req.body = req.headers['content-type']?.includes('application/json') ? {} : '';
+    return;
+  }
+  if (req.headers['content-type']?.includes('application/json')) {
+    try {
+      req.body = JSON.parse(raw);
+    } catch {
+      req.body = {};
+    }
+  } else {
+    req.body = raw;
+  }
+}
+
 export default async function handler(req, res) {
   try {
+    await ensureBody(req);
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
     const pathname = url.pathname.replace(/\/$/, '') || '/';
     req.query = Object.fromEntries(url.searchParams.entries());
